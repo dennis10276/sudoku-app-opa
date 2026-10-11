@@ -1,0 +1,165 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const vm = require('node:vm');
+const fs = require('node:fs');
+const { webcrypto } = require('node:crypto');
+const source = fs.readFileSync(require('node:path').join(__dirname, '..', 'tracking.js'), 'utf8');
+function app(saved = new Map(), storage = {}) {
+  let now = Date.parse('2026-10-11T10:00:00Z');
+  const events = {}, requests = [], database = new Map(), profiles = new Map(), intervals = [];
+  let failed = false, waiting = null;
+  const context = {
+    Date: class extends Date { static now() { return now; } }, Intl,
+    crypto: webcrypto, AbortController, URL, location: { href: 'https://example.test/patience/' },
+    navigator: { onLine: true }, document: { hidden: false, addEventListener(k, fn) { events[k] = fn; } },
+    localStorage: { getItem: k => { if (storage.readFails) throw new Error('blocked'); return saved.get(k); }, setItem: (k, v) => { if (storage.writeFails) throw new Error('quota'); saved.set(k, v); } },
+    setInterval: fn => intervals.push(fn), setTimeout, clearTimeout,
+    addEventListener(k, fn) { events[k] = fn; },
+    async fetch(url, options) {
+      requests.push({ url, data: JSON.parse(options.body) });
+      if (waiting) await waiting;
+      if (failed) throw new TypeError('offline');
+      if (url.includes('/players/')) profiles.set(url, { ...profiles.get(url), ...JSON.parse(options.body) });
+      else database.set(url, JSON.parse(options.body));
+      return { ok: true };
+    },
+    SUDOKU_TRACKING: { databaseUrl: 'https://example.firebasedatabase.app' }
+  };
+  context.window = context;
+  vm.runInNewContext(source, context);
+  return {
+    tracking: context.SudokuTracking, requests, database, profiles, saved, context, events, intervals,
+    advance(ms = 1000, playing = true) { now += ms; context.SudokuTracking.tick(playing); },
+    setTime(ms) { now = ms; }, fail(value) { failed = value; }, wait(promise) { waiting = promise; },
+    async settle() { await new Promise(resolve => setImmediate(resolve)); }
+  };
+}
+test('play is tracked automatically on the first move, while merely opening is not', async () => {
+  const a = app(); a.advance(); await a.settle();
+  assert.equal(a.requests.length, 0);
+  a.tracking.touch(true);
+  for (let i = 0; i < 45; i++) a.advance();
+  a.tracking.stop(); await a.settle(); await a.tracking.flush();
+  const records = [...a.database.values()];
+  assert.equal(records.length, 1); assert.equal(records[0].seconds, 45);
+  assert.equal(records[0].games, 1); assert.equal(records[0].active, false);
+  for (let i = 0; i < 20; i++) a.advance();
+  assert.equal([...a.database.values()][0].seconds, 45);
+});
+test('offline summaries retry the same record, without double-counting', async () => {
+  const a = app(); a.fail(true); a.tracking.touch(true);
+  for (let i = 0; i < 10; i++) a.advance();
+  a.tracking.win(); await a.settle();
+  assert.equal(a.database.size, 0);
+  a.fail(false); await a.tracking.flush(); await a.tracking.flush();
+  assert.equal(a.database.size, 1);
+  const record = [...a.database.values()][0];
+  assert.equal(record.seconds, 10); assert.equal(record.wins, 1); assert.equal(record.active, false);
+  assert.equal(Object.keys(JSON.parse(a.saved.get('sudoku.sessions.v1'))).length, 0);
+});
+test('idle time is capped and resumed play gets a new session', async () => {
+  const a = app(); a.tracking.touch(true);
+  for (let i = 0; i < 180; i++) a.advance();
+  await a.settle(); await a.tracking.flush();
+  assert.equal([...a.database.values()][0].seconds, 120);
+  assert.equal([...a.database.values()][0].active, false);
+  a.tracking.touch(); a.advance(); a.tracking.stop(); await a.settle(); await a.tracking.flush();
+  assert.equal(a.database.size, 2);
+  assert.equal([...a.database.values()].reduce((n, r) => n + r.games, 0), 1);
+});
+test('suspended timers and background tabs do not count hours as play', async () => {
+  const a = app(); a.tracking.touch(true); a.advance();
+  a.advance(3600000); await a.settle(); await a.tracking.flush();
+  assert.equal([...a.database.values()][0].seconds, 1);
+  a.context.document.hidden = true; a.tracking.touch(true);
+  assert.equal(a.database.size, 1);
+});
+test('crash recovery sends a final inactive snapshot', async () => {
+  const a = app(); a.fail(true); a.tracking.touch(true); a.advance();
+  await a.settle();
+  const b = app(a.saved); await b.settle(); await b.tracking.flush();
+  assert.equal([...b.database.values()][0].active, false);
+});
+test('a snapshot saved during an upload is retained for the next flush', async () => {
+  const a = app(); let release; a.wait(new Promise(r => { release = r; }));
+  a.tracking.touch(true); a.advance(); a.tracking.stop();
+  release(); await a.settle(); a.wait(null); await a.tracking.flush();
+  assert.equal([...a.database.values()][0].seconds, 1);
+  assert.equal([...a.database.values()][0].active, false);
+});
+test('Sudoku reuses the persisted Patience player identity', async () => {
+  const id = 'a'.repeat(32);
+  const saved = new Map([['patience.sharing.v1', JSON.stringify({key: id, enabled: false})]]);
+  const a = app(saved);
+  a.tracking.touch(true); a.advance(); a.tracking.stop(); await a.settle(); await a.tracking.flush();
+  assert.equal(a.database.size, 1);
+  assert.equal(a.tracking.deviceId, id);
+  assert.ok([...a.database.keys()][0].includes('/sessions/' + id + '/'));
+  const b = app(saved); assert.equal(b.tracking.deviceId, id);
+});
+test('different installations have separate device IDs', () => {
+  assert.notEqual(app().tracking.deviceId, app().tracking.deviceId);
+});
+
+test('failed identity persistence skips tracking and recovers when storage works', async () => {
+  const storage = { writeFails: true }, a = app(new Map(), storage);
+  a.tracking.touch(true); a.advance(); a.tracking.stop(); await a.settle();
+  assert.equal(a.requests.length, 0);
+  storage.writeFails = false;
+  a.tracking.touch(true); a.advance(); a.tracking.stop(); await a.settle(); await a.tracking.flush();
+  assert.equal(a.database.size, 1);
+  assert.equal([...a.database.values()][0].seconds, 1);
+  assert.equal(app(a.saved).tracking.deviceId, a.tracking.deviceId);
+});
+
+test('blocked reads never upload an unstable identity', async () => {
+  const a = app(new Map(), { readFails: true });
+  a.tracking.touch(true); a.advance(); await a.tracking.flush();
+  assert.equal(a.requests.length, 0);
+});
+
+test('quota errors still allow tracking with an already persisted identity', async () => {
+  const id = 'a'.repeat(32), a = app(new Map([['patience.sharing.v1', JSON.stringify({ key: id })]]), { writeFails: true });
+  a.tracking.touch(true); a.advance(); a.tracking.stop(); await a.settle(); await a.tracking.flush();
+  assert.equal(a.database.size, 1);
+  assert.ok([...a.database.keys()][0].includes('/sessions/' + id + '/'));
+});
+
+test('players register automatically once per visit without overwriting their name', async () => {
+  const a = app(); a.tracking.touch(true); await a.settle(); a.advance(); a.tracking.stop(); await a.settle(); await a.tracking.flush();
+  a.tracking.touch(); a.tracking.stop(); await a.settle(); await a.tracking.flush();
+  const registrations = a.requests.filter(r => r.url.includes('/players/'));
+  assert.equal(registrations.length, 1);
+  assert.deepEqual(Object.keys(registrations[0].data), ['device']);
+  assert.equal(a.profiles.size, 1);
+});
+test('sessions split at Amsterdam midnight', async () => {
+  const a = app(); a.setTime(Date.parse('2026-10-11T21:59:58Z'));
+  a.tracking.touch(true); a.advance(); a.advance(); a.advance();
+  a.tracking.stop(); await a.settle(); await a.tracking.flush();
+  assert.equal(a.database.size, 2);
+  assert.equal([...a.database.values()].reduce((n, r) => n + r.seconds, 0), 3);
+});
+
+test('Sudoku summaries keep difficulty, daily mode and action counts when retried offline', async () => {
+  const a = app(); a.fail(true);
+  a.tracking.touch(true, { level: 'expert', daily: true });
+  a.tracking.hint(); a.tracking.mistake(); a.tracking.mistake();
+  a.advance(); a.tracking.win(); await a.settle();
+  a.fail(false); await a.tracking.flush();
+  const record = [...a.database.values()][0];
+  assert.equal(record.app, 'sudoku'); assert.equal(record.level, 'expert'); assert.equal(record.daily, true);
+  assert.equal(record.hints, 1); assert.equal(record.mistakes, 2); assert.equal(record.wins, 1);
+  assert.equal(record.games, 1); assert.equal(record.active, false);
+});
+
+test('midnight splitting preserves Sudoku metadata without counting a new puzzle', async () => {
+  const a = app(); a.setTime(Date.parse('2026-10-11T21:59:58Z'));
+  a.tracking.touch(true, { level: 'master', daily: true }); a.tracking.hint();
+  a.advance(); a.advance(); a.advance(); a.tracking.stop(); await a.settle(); await a.tracking.flush();
+  const records = [...a.database.values()];
+  assert.equal(records.length, 2);
+  assert.ok(records.every(r => r.level === 'master' && r.daily === true && r.app === 'sudoku'));
+  assert.equal(records.reduce((n, r) => n + r.games, 0), 1);
+  assert.equal(records.reduce((n, r) => n + r.hints, 0), 1);
+});

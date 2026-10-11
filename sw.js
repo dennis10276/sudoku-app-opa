@@ -1,6 +1,6 @@
 /* Offline support. Network first (so updates arrive right away), cache as fallback. */
-const CACHE = 'sudoku-v1';
-const FILES = ['./', 'index.html', 'style.css?v=1', 'game.js?v=1', 'core.js?v=1', 'puzzles.js?v=1', 'manifest.webmanifest',
+const CACHE = 'sudoku-v2';
+const FILES = ['./', 'index.html', 'style.css?v=2', 'game.js?v=2', 'tracking-config.js?v=2', 'tracking.js?v=2', 'core.js?v=2', 'puzzles.js?v=2', 'manifest.webmanifest',
   'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/favicon-32.png'];
 
 self.addEventListener('install', e => {
@@ -8,7 +8,7 @@ self.addEventListener('install', e => {
 });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys()
-    .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+    .then(keys => Promise.all(keys.filter(k => k.startsWith('sudoku-') && k !== CACHE).map(k => caches.delete(k))))
     .then(() => self.clients.claim()));
 });
 self.addEventListener('fetch', e => {

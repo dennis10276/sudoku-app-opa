@@ -1,0 +1,126 @@
+/* One small, replaceable summary per play session. No puzzle grids, solutions or move history. */
+(() => {
+'use strict';
+const KEY = 'patience.sharing.v1', QUEUE = 'sudoku.sessions.v1';
+const IDLE = 120000, HEARTBEAT = 30000, MAX_PENDING = 500;
+const read = (k, fallback) => { try { return JSON.parse(localStorage.getItem(k)) || fallback; } catch (_) { return fallback; } };
+const write = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} };
+const validKey = k => /^[a-f0-9]{32}$/.test(k || '');
+const randomId = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), n => n.toString(16).padStart(2, '0')).join('');
+const dayFormatter = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Amsterdam' });
+const day = t => dayFormatter.format(t);
+let sharing = read(KEY, {}), pending = read(QUEUE, {});
+// Shared with Patience on this origin; keep its existing player ID and friendly name.
+if (!sharing || typeof sharing !== 'object') sharing = {};
+if (!validKey(sharing.key)) sharing.key = randomId();
+sharing = { key: sharing.key };
+write(KEY, sharing);
+// Never upload under an identity that will disappear on the next visit.
+const identityReady = () => read(KEY, {}).key === sharing.key;
+const device = /iPhone|iPod/.test(navigator.userAgent || '') ? 'iPhone' : /iPad/.test(navigator.userAgent || '') || (/Macintosh/.test(navigator.userAgent || '') && navigator.maxTouchPoints > 1) ? 'iPad' : /Android/.test(navigator.userAgent || '') ? 'Android' : 'Computer';
+if (!pending || typeof pending !== 'object' || Array.isArray(pending)) pending = {};
+let current = null, lastTouch = 0, lastTick = 0, lastSent = 0, flushing = false;
+const registered = new Set();
+const base = () => String((window.SUDOKU_TRACKING || {}).databaseUrl || '').replace(/\/$/, '');
+// Never resend a stale 'active' state after a browser crash or offline close.
+for (const [id, entry] of Object.entries(pending)) {
+  if (!entry || !validKey(entry.key) || !entry.data) delete pending[id];
+  else entry.data.active = false;
+}
+write(QUEUE, pending);
+function save() {
+  if (!current) return;
+  pending[current.id] = { key: sharing.key, data: { ...current.data } };
+  const ids = Object.keys(pending);
+  while (ids.length > MAX_PENDING) delete pending[ids.shift()];
+  write(QUEUE, pending);
+}
+function account(now) {
+  if (!current) return;
+  const dt = now - lastTick;
+  // A suspended browser timer is not evidence of play during the gap.
+  if (dt > 0 && dt <= 5000) {
+    current.ms += Math.max(0, Math.min(now, lastTouch + IDLE) - lastTick);
+    current.data.last = Math.min(now, lastTouch + IDLE);
+  }
+  lastTick = now;
+  current.data.seconds = Math.floor(current.ms / 1000);
+}
+function stop() {
+  if (!current) return;
+  account(Date.now());
+  current.data.active = false;
+  save(); current = null;
+  flush();
+}
+function touch(newGame = false, details = {}) {
+  if (document.hidden) return false;
+  if (!identityReady()) {
+    write(KEY, sharing);
+    if (!identityReady()) return false;
+  }
+  const now = Date.now();
+  if (current && (now - lastTouch >= IDLE || day(now) !== day(current.data.start))) stop();
+  if (!current) {
+    current = { id: randomId(), ms: 0, data: { start: now, last: now, seconds: 0, games: 0, wins: 0, active: true, app: 'sudoku', level: details.level || 'easy', daily: !!details.daily, hints: 0, mistakes: 0 } };
+    lastTick = now; lastSent = 0;
+  } else account(now);
+  lastTouch = now;
+  current.data.last = now;
+  if (newGame) current.data.games++;
+  save();
+  if (!lastSent) { lastSent = now; flush(); }
+  return true;
+}
+function tick(playing) {
+  if (!current) return;
+  const now = Date.now();
+  if (!playing || document.hidden || now - lastTouch >= IDLE || now - lastTick > 5000) return stop();
+  // Split at local midnight so daily totals stay accurate.
+  if (day(now) !== day(current.data.start)) { const details = { level: current.data.level, daily: current.data.daily }; stop(); touch(false, details); return; }
+  account(now); save();
+  if (now - lastSent >= HEARTBEAT) { lastSent = now; flush(); }
+}
+async function flush() {
+  if (flushing || !base() || navigator.onLine === false) return;
+  flushing = true;
+  try {
+    for (const id of Object.keys(pending)) {
+      const entry = pending[id], body = JSON.stringify(entry.data);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      try {
+        if (!registered.has(entry.key)) {
+          // PATCH preserves any friendly name given in the family dashboard.
+          const profile = await fetch(`${base()}/players/${entry.key}.json`, {
+            method: 'PATCH', body: JSON.stringify({ device }), headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal, keepalive: true
+          });
+          if (!profile.ok) break;
+          registered.add(entry.key);
+        }
+        const response = await fetch(`${base()}/sessions/${entry.key}/${id}.json`, {
+          method: 'PUT', body, headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal, keepalive: true
+        });
+        if (!response.ok) break;
+        // A new snapshot may have been saved while this request was in flight.
+        if (pending[id] && JSON.stringify(pending[id].data) === body) { delete pending[id]; write(QUEUE, pending); }
+      } finally { clearTimeout(timeout); }
+    }
+  } catch (_) { /* Offline/denied: retain summaries and retry later. */ }
+  finally { flushing = false; }
+}
+window.SudokuTracking = {
+  touch, tick, stop, flush,
+  hint() { if (current) { current.data.hints++; save(); } },
+  mistake() { if (current) { current.data.mistakes++; save(); } },
+  win() { if (current) { current.data.wins++; stop(); } },
+  get deviceId() { return sharing.key; }
+};
+document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); else flush(); });
+addEventListener('pagehide', stop);
+addEventListener('online', flush);
+setInterval(flush, HEARTBEAT);
+flush();
+})();
