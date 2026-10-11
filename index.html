@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Sudoku</title>
+<meta name="description" content="Klassieke Sudoku – zonder reclame.">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sudoku">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+
+<!-- ============ Start ============ -->
+<section class="screen" id="scrHome">
+  <header class="top">
+    <span class="top-side"></span>
+    <h1 class="brand">Sudoku</h1>
+    <button class="icon-btn top-side" data-act="settings" aria-label="Instellingen"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg></button>
+  </header>
+  <div class="home-body">
+    <div class="home-art" aria-hidden="true" id="homeArt"></div>
+    <button class="daily-card" id="homeDaily">
+      <span class="dc-ic"><svg viewBox="0 0 24 24"><use href="#i-cal"/></svg><b id="homeDailyDay">11</b></span>
+      <span class="dc-txt"><b>Dagelijkse uitdaging</b><span id="homeDailyDate">zondag 11 oktober</span></span>
+      <span class="dc-go" id="homeDailyGo">Spelen</span>
+    </button>
+    <div class="home-btns">
+      <button class="btn primary big" id="homeContinue" hidden><span>Verder spelen</span><small id="homeContinueSub"></small></button>
+      <button class="btn big" id="homeNew"><span>Nieuw spel</span></button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Dagelijks ============ -->
+<section class="screen" id="scrDaily">
+  <header class="top">
+    <span class="top-side"></span>
+    <h1 class="title">Dagelijkse uitdagingen</h1>
+    <button class="icon-btn top-side" data-act="settings" aria-label="Instellingen"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg></button>
+  </header>
+  <div class="daily-body">
+    <div class="trophy-row">
+      <div class="trophy" id="dTrophy"><svg viewBox="0 0 24 24"><use href="#i-trophy"/></svg></div>
+      <div><b id="dTrophyTxt">0 van 31</b><span>uitdagingen voltooid deze maand</span></div>
+    </div>
+    <div class="cal">
+      <div class="cal-head">
+        <button class="icon-btn" id="dPrev" aria-label="Vorige maand"><svg viewBox="0 0 24 24"><use href="#i-left"/></svg></button>
+        <b id="dMonth">oktober 2026</b>
+        <button class="icon-btn" id="dNext" aria-label="Volgende maand"><svg viewBox="0 0 24 24"><use href="#i-right"/></svg></button>
+      </div>
+      <div class="cal-days"><span>ma</span><span>di</span><span>wo</span><span>do</span><span>vr</span><span>za</span><span>zo</span></div>
+      <div class="cal-grid" id="dGrid"></div>
+    </div>
+    <div class="daily-pick">
+      <p id="dInfo">zondag 11 oktober · Gemiddeld</p>
+      <button class="btn primary big" id="dPlay"><span>Spelen</span></button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ Statistieken ============ -->
+<section class="screen" id="scrStats">
+  <header class="top">
+    <span class="top-side"></span>
+    <h1 class="title">Statistieken</h1>
+    <button class="icon-btn top-side" data-act="settings" aria-label="Instellingen"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg></button>
+  </header>
+  <div class="chips" id="sChips"></div>
+  <div class="stats-body" id="sBody"></div>
+</section>
+
+<!-- ============ Spel ============ -->
+<section class="screen" id="scrGame">
+  <header class="top game-top">
+    <button class="icon-btn top-side back" id="gBack" aria-label="Terug"><svg viewBox="0 0 24 24"><use href="#i-left"/></svg><span>Start</span></button>
+    <h1 class="title" id="gTitle">Gemiddeld</h1>
+    <button class="icon-btn top-side" data-act="settings" aria-label="Instellingen"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg></button>
+  </header>
+  <div class="info">
+    <div class="info-item" id="gMistBox"><span>Fouten</span><b id="gMist">0/3</b></div>
+    <div class="info-item"><span>Score</span><b id="gScore">0</b></div>
+    <div class="info-item" id="gTimeBox"><span>Tijd</span><b id="gTime">00:00</b></div>
+    <button class="pause-btn" id="gPause" aria-label="Pauze"><svg viewBox="0 0 24 24"><use href="#i-pause"/></svg></button>
+  </div>
+  <div class="board-wrap" id="boardWrap">
+    <div class="board" id="board"></div>
+    <div class="paused" id="paused" hidden>
+      <button class="resume" id="gResume" aria-label="Verder"><svg viewBox="0 0 24 24"><use href="#i-play"/></svg></button>
+      <b>Gepauzeerd</b>
+    </div>
+  </div>
+  <div class="side">
+    <div class="tools">
+      <button class="tool" data-tool="undo"><span class="tic"><svg viewBox="0 0 24 24"><use href="#i-undo"/></svg></span><span>Ongedaan</span></button>
+      <button class="tool" data-tool="erase"><span class="tic"><svg viewBox="0 0 24 24"><use href="#i-erase"/></svg></span><span>Wissen</span></button>
+      <button class="tool" data-tool="notes"><span class="tic"><svg viewBox="0 0 24 24"><use href="#i-pencil"/></svg><i class="badge" id="notesBadge">UIT</i></span><span>Notities</span></button>
+      <button class="tool" data-tool="hint"><span class="tic"><svg viewBox="0 0 24 24"><use href="#i-bulb"/></svg></span><span>Hint</span></button>
+    </div>
+    <div class="pad" id="pad"></div>
+  </div>
+</section>
+
+<nav class="tabbar" id="tabbar">
+  <button data-tab="Home"><svg viewBox="0 0 24 24"><use href="#i-home"/></svg><span>Start</span></button>
+  <button data-tab="Daily"><svg viewBox="0 0 24 24"><use href="#i-cal"/></svg><span>Dagelijks</span></button>
+  <button data-tab="Stats"><svg viewBox="0 0 24 24"><use href="#i-chart"/></svg><span>Statistieken</span></button>
+</nav>
+
+<!-- ============ Uitlegpagina (in Safari, nog niet op beginscherm) ============ -->
+<section id="landing" hidden>
+  <div class="ld-wrap">
+    <header class="ld-hero">
+      <div class="ld-grid" id="ldGrid" aria-hidden="true"></div>
+      <h1>Sudoku</h1>
+      <p class="ld-sub">De klassieke cijferpuzzel<br>zonder reclame</p>
+      <button id="ldPlay" class="ld-play">Spelen</button>
+      <p class="ld-small" id="ldResume" hidden>Je gaat verder waar je gebleven was.</p>
+    </header>
+
+    <article class="ld-card" id="ldInstall">
+      <h2>Zet Sudoku op je beginscherm</h2>
+      <p class="ld-lead">Dan staat het spel tussen je apps en start het met één tik, schermvullend en ook zonder internet.</p>
+      <ol class="ld-steps">
+        <li>
+          <span class="ld-ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="M15.5 8.5 13 13l-4.5 2.5L11 11z"/></svg></span>
+          <div><b>Open deze pagina in Safari</b><span>Het blauwe kompas-icoon. In andere browsers werkt het soms niet.</span></div>
+        </li>
+        <li>
+          <span class="ld-ic"><svg viewBox="0 0 24 24"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M7 10H5.5v11h13V10H17"/></svg></span>
+          <div><b>Tik op de Deel-knop</b><span>Het vierkantje met een pijltje omhoog, onderaan het scherm (op de iPad bovenaan). Zie je hem niet? Tik dan eerst op <b class="ld-key">•••</b> en daarna op <b>Deel</b>.</span></div>
+        </li>
+        <li>
+          <span class="ld-ic"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.5v7M8.5 12h7"/></svg></span>
+          <div><b>Kies “Zet op beginscherm”</b><span>Scroll in het lijstje een stukje omlaag als je hem niet meteen ziet.</span></div>
+        </li>
+        <li>
+          <span class="ld-ic"><svg viewBox="0 0 24 24"><path d="M5 12.5 10 17.5 19 7"/></svg></span>
+          <div><b>Tik rechtsboven op “Voeg toe”</b><span>Staat er een schakelaar “Open als webapp”? Laat die aan staan.</span></div>
+        </li>
+      </ol>
+      <div class="ld-done">
+        <div class="ld-phone" aria-hidden="true">
+          <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          <img src="icons/icon-192.png" alt="">
+        </div>
+        <p><b>Klaar!</b> Voortaan tik je gewoon op het blauwe <b>Sudoku</b>-icoon om te spelen.</p>
+      </div>
+    </article>
+
+    <article class="ld-card ld-feats">
+      <h2>Zo speel je</h2>
+      <ul>
+        <li>Vul de getallen <b>1 tot en met 9</b> in. Elk getal komt in elke rij, elke kolom en elk blok van 3×3 precies één keer voor.</li>
+        <li><b>Tik op een vakje</b> en daarna op een getal onderaan.</li>
+        <li>Met <b>Notities</b> zet je kleine hulpgetallen in een vakje. <b>Hint</b> helpt je verder als je vastzit.</li>
+        <li>Zes niveaus, van <b>Makkelijk</b> tot <b>Extreem</b>, en elke dag een nieuwe <b>dagelijkse uitdaging</b>.</li>
+        <li>Het spel wordt <b>vanzelf bewaard</b>. Grotere cijfers en andere instellingen vind je onder het tandwiel.</li>
+      </ul>
+    </article>
+
+    <button id="ldPlay2" class="ld-play ld-play-bottom">Spelen</button>
+    <p class="ld-foot">Geen reclame · Werkt zonder internet · Wordt vanzelf bewaard</p>
+  </div>
+</section>
+
+<div id="toast" role="status"></div>
+<div id="modal" hidden><div class="sheet" role="dialog" aria-modal="true"></div></div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.5V20h4.5v-6h4v6h4.5V9.5"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M5 20V12M10 20V6M15 20v-9M20 20V4"/></symbol>
+    <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4v1.5A3.5 3.5 0 0 0 7.5 11M17 6h3v1.5a3.5 3.5 0 0 1-3.5 3.5M12 14v3.5M8 20.5h8M9.5 17.5h5"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><path d="M9 6v12M15 6v12"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z"/></symbol>
+    <symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></symbol>
+    <symbol id="i-erase" viewBox="0 0 24 24"><path d="M20 20H9.5L4.6 15.1a1.5 1.5 0 0 1 0-2.1L13 4.6a1.5 1.5 0 0 1 2.1 0l4.3 4.3a1.5 1.5 0 0 1 0 2.1L11 19.5"/><path d="M8.5 9.5l6 6"/></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20l1-4.5L15.5 5a2.1 2.1 0 0 1 3 3L8 18.5z"/><path d="M13.5 7l3 3"/></symbol>
+    <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5 10 17.5 19 7"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.8l-5.2 2.8 1-5.8-4.3-4.1 5.9-.8z"/></symbol>
+  </defs>
+</svg>
+
+<script src="puzzles.js?v=1"></script>
+<script src="core.js?v=1"></script>
+<script src="game.js?v=1"></script>
+</body>
+</html>
