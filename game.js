@@ -102,13 +102,13 @@ function saveGame() {
 function savedMain() { const d = load(LS.main, null); return d && d.G && Array.isArray(d.G.val) ? d : null; }
 
 function newGame(level, daily = null) {
-  playTracking?.stop();
+  endTracking('new_game');
   if (!daily) abandonMain();
   const rnd = mulberry(daily ? hashStr('dag-' + daily) : (Math.random() * 4294967296) >>> 0);
   const puz = makePuzzle(level, rnd);
   const sol = C.solve(puz, 1).solution;
   G = {
-    level, daily, puz, sol, val: puz.slice(), notes: new Array(81).fill(0),
+    level, daily, puz, sol, val: puz.slice(), notes: new Array(81).fill(0), playId: playTracking?.newRound(),
     mistakes: 0, score: 0, time: 0, hints: 0, chances: 0,
     counted: false, won: false, lost: false,
     scored: new Array(81).fill(0), hinted: new Array(81).fill(0),
@@ -124,13 +124,14 @@ function abandonMain() {
   if (G && !G.daily) G = null;
 }
 function resume(data) {
-  playTracking?.stop();
+  endTracking('menu');
   G = data.G; H = data.H || []; sel = G.sel != null ? G.sel : -1; notesMode = !!G.notesMode; paused = false;
   openGame();
   if (G.lost) setTimeout(gameOverSheet, 250);
 }
 function restartGame() {
-  playTracking?.stop();
+  endTracking('restart');
+  G.playId = playTracking?.newRound();
   G.trackingStarted = false;
   G.val = G.puz.slice(); G.notes.fill(0); G.mistakes = 0; G.score = 0; G.time = 0; G.hints = 0; G.chances = 0;
   G.won = false; G.lost = false; G.scored.fill(0); G.hinted.fill(0);
@@ -224,10 +225,20 @@ function select(i) {
   sel = i; render();
 }
 function snap(i) { return { i, v: G.val[i], n: G.notes[i] }; }
+function trackingDetails() {
+  if (!G) return {};
+  if (!G.playId) G.playId = playTracking?.newRound();
+  return { round: G.playId, build: 'sudoku-3', level: G.level, daily: !!G.daily,
+    progress: G.val.reduce((n, v, i) => n + (!G.puz[i] && v === G.sol[i] ? 1 : 0), 0),
+    total: G.puz.filter(v => !v).length, score: G.score, gameSeconds: G.time,
+    autoCheck: !!S.autoCheck, mistakeLimit: !!S.mistakeLimit };
+}
+function endTracking(reason) { playTracking?.state(trackingDetails()); playTracking?.stop(reason); }
+function trackAction(name) { trackPlay(); playTracking?.action(name, trackingDetails()); }
 function trackPlay() {
   if (!G || G.won || G.lost || paused || sheetOpen || screen !== 'Game' || !$('landing').hidden) return;
   const started = G.trackingStarted == null ? G.counted : G.trackingStarted;
-  if (playTracking?.touch(!started, { level: G.level, daily: !!G.daily })) G.trackingStarted = true;
+  if (playTracking?.touch(!started, trackingDetails())) G.trackingStarted = true;
 }
 function startCounting() {
   trackPlay();
@@ -249,7 +260,7 @@ function input(d) {
     const changes = [snap(i)];
     if (G.val[i]) G.val[i] = 0;
     G.notes[i] ^= 1 << (d - 1);
-    H.push(changes); sound('tap');
+    H.push(changes); playTracking?.action('note', trackingDetails()); sound('tap');
     render(); saveGame(); return;
   }
   if (G.val[i] === d) return;
@@ -257,6 +268,7 @@ function input(d) {
   const changes = [snap(i)];
   G.val[i] = d; G.notes[i] = 0;
   const wrong = d !== G.sol[i];
+  playTracking?.action('input', trackingDetails());
   if (S.autoNotes && !(S.autoCheck && wrong)) clearPeerNotes(i, d, changes);
   H.push(changes);
   anim(i, 'pop');
@@ -265,7 +277,7 @@ function input(d) {
     playTracking?.mistake();
     sound('err'); anim(i, 'shake');
     render(); saveGame();
-    if (S.mistakeLimit && G.mistakes >= 3) { G.lost = true; playTracking?.stop(); saveGame(); setTimeout(gameOverSheet, 650); }
+    if (S.mistakeLimit && G.mistakes >= 3) { G.lost = true; endTracking('lost'); saveGame(); setTimeout(gameOverSheet, 650); }
     return;
   }
   if (!wrong) placedCorrect(i, false);
@@ -299,6 +311,7 @@ function undo() {
   trackPlay();
   for (let k = ch.length - 1; k >= 0; k--) { const c = ch[k]; G.val[c.i] = c.v; G.notes[c.i] = c.n; }
   sel = ch[0].i;
+  playTracking?.action('undo', trackingDetails());
   sound('tap'); render(); saveGame();
 }
 function erase() {
@@ -309,6 +322,7 @@ function erase() {
   trackPlay();
   H.push([snap(i)]);
   if (G.val[i]) G.val[i] = 0; else G.notes[i] = 0;
+  playTracking?.action('erase', trackingDetails());
   sound('tap'); render(); saveGame();
 }
 function toggleNotes() {
@@ -364,7 +378,7 @@ function hint() {
   startCounting();
   const changes = [snap(cell)];
   G.val[cell] = d; G.notes[cell] = 0; G.hinted[cell] = 1; G.hints++;
-  playTracking?.hint();
+  playTracking?.state(trackingDetails()); playTracking?.hint();
   if (S.autoNotes) clearPeerNotes(cell, d, changes);
   H.push(changes);
   sel = cell;
@@ -378,7 +392,7 @@ function hint() {
 
 /* ================= win / lose ================= */
 function win() {
-  playTracking?.win();
+  playTracking?.state(trackingDetails()); playTracking?.win();
   G.won = true; G.sel = sel = -1;
   const l = LV[G.level];
   let record = false;
@@ -435,7 +449,7 @@ function gameOverSheet() {
       <button class="btn" data-a="restart">Opnieuw beginnen</button>
       ${G.daily ? '<button class="btn ghost" data-a="cal">Naar de kalender</button>' : '<button class="btn ghost" data-a="new">Nieuw spel</button>'}
     </div>`, {
-    again: () => { G.lost = false; G.mistakes = 2; G.chances++; saveGame(); closeSheet(); render(); },
+    again: () => { G.lost = false; G.mistakes = 2; G.chances++; saveGame(); closeSheet(); trackAction('second_chance'); render(); },
     restart: () => { closeSheet(); restartGame(); },
     cal: () => { closeSheet(); show('Daily'); },
     new: () => { closeSheet(); levelSheet(false); },
@@ -445,7 +459,7 @@ function gameOverSheet() {
 /* ================= sheets ================= */
 let sheetOpen = false, sheetLocked = false;
 function sheet(html, actions = {}, opt = {}) {
-  playTracking?.stop();
+  endTracking('menu');
   const m = $('modal'), sh = m.firstElementChild;
   sh.innerHTML = '<div class="grab"></div>' + html;
   sh.onclick = e => {
@@ -571,7 +585,7 @@ function sound(kind) {
 
 /* ================= screens ================= */
 function show(name) {
-  if (name !== 'Game') playTracking?.stop();
+  if (name !== 'Game') endTracking('menu');
   screen = name;
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('active', s.id === 'scr' + name));
   document.body.classList.toggle('tabs', name !== 'Game');
@@ -699,7 +713,7 @@ document.querySelectorAll('.tool').forEach(b => b.addEventListener('click', () =
 }));
 $('gBack').addEventListener('click', () => { sound('tap'); show(returnTo); });
 function setPaused(p) {
-  if (p) playTracking?.stop();
+  if (p) endTracking('pause');
   if (!G || G.won) return;
   paused = p; $('paused').hidden = !p;
 }
@@ -727,6 +741,7 @@ document.addEventListener('keydown', e => {
 /* ---------- timer ---------- */
 setInterval(() => {
   const playing = screen === 'Game' && G && !G.won && !G.lost && !paused && !sheetOpen && !document.hidden && $('landing').hidden;
+  if (G) playTracking?.state(trackingDetails());
   playTracking?.tick(!!playing);
   if (!playing) return;
   G.time++;
@@ -771,7 +786,7 @@ if (darkMQ && darkMQ.addEventListener) darkMQ.addEventListener('change', applySe
 /* ================= landing page ================= */
 const isStandalone = () => window.navigator.standalone === true || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
 function showLanding(scrollToInstall) {
-  playTracking?.stop();
+  endTracking('menu');
   closeSheet();
   const ld = $('landing');
   const hasGame = !!savedMain() && !savedMain().G.won;

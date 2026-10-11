@@ -66,3 +66,36 @@ serviceworkercaches blijven apart. Publiceer de bijgewerkte centrale validatiere
 Controle: `node --test tests/*.test.cjs`. Tests draaien de echte spelcode en tracker samen en controleren
 eerste invoer/notities, pauzes/menu's, voltooide dagelijkse puzzels, fouten, identiteit, offlineherstel en
 middernacht. De serviceworker verwijdert bij updates alleen zijn eigen oude caches.
+
+
+## Uitgebreide spelinzichten
+
+Het gezamenlijke online dashboard toont nu een periode van 7, 30 of 90 dagen: Nederlandse uren en
+weekdagen, typische actieve tijd (mediaan), geobserveerde pogingen, voltooiingen, acties en eindmeldingen.
+Een willekeurige pogingcode verbindt pauzes/hervattingen van dezelfde poging; opnieuw beginnen krijgt
+een nieuwe code. Een geladen oud spel krijgt een code bij het spelen, zonder historische zetten te importeren.
+De vergelijking per spel/niveau is geen definitief winstpercentage: pogingen kunnen later nog worden voltooid.
+
+Elk nieuw sessierecord bevat optioneel `detail` (versie 1): pogingcode, appversie, spelstand, begin/eindvoortgang,
+score/spelklok, relevante spelinstellingen, begrensde actietellers, laatste actie/tijd, laatste voortgangstijd,
+langste tijd zonder spelactie (maximaal 120 seconden), en een waargenomen eindmelding.
+Patience telt kaartverplaatsingen, stapeltrekken/omdraaien, hints, terugzetten, automatisch uitspelen en
+kaartacties die geen zet opleverden. Sudoku telt invoer, foutmeldingen, hints, notities, wissen,
+terugzetten en tweede kansen. Fouten worden alleen als foutmelding geteld wanneer de foutencontrole aanstaat.
+Voortgang is bij Patience het aantal kaarten op de vier stapels boven (van 52); bij Sudoku het aantal
+correct ingevulde niet-vooringevulde vakjes. Een nuttige tableauzet hoeft dus geen stijging te geven.
+
+Eindmeldingen onderscheiden winnen, foutenlimiet, geen-zettenmelding, nieuw spel, opnieuw beginnen,
+menu, pauze, app verborgen, pagina verlaten, 2 minuten zonder aanraking, onderbroken browsertimer en
+herstel na een crash/offlinebezoek. Een daggrens is alleen boekhouding. De app weet niet of iemand moe,
+verveeld of gefrustreerd is; het dashboard presenteert patronen als aanwijzingen, niet als oorzaken.
+Een plots afgesloten app kan de eindmelding missen; verouderde actieve records krijgen daarom geen
+verzonnen stopreden. De tijd van een eindmelding kan de detectietijd zijn, bijvoorbeeld na timeronderbreking.
+
+Alle metingen blijven automatisch en gebruiken dezelfde publieke database en bestaande toegangsregels.
+Er is geen apart klikkenlogboek, kaart-/puzzelinhoud, oplossing, schermopname of externe analyticsdienst.
+Oude records blijven zichtbaar met hun beperkte gegevens. De uitgebreide metingen beginnen bij deze update.
+Elke 30 seconden wordt hetzelfde compacte record vervangen; offline wachtrijen blijven idempotent.
+Reken met grofweg 0,5–1 kB ruwe inhoud per uitgebreid blok (afhankelijk van gebruikte acties), exclusief
+sleutels en transport. Bij twintig blokken per dag is dat ongeveer 4–8 MB per jaar. Het dashboard laadt
+nog steeds maximaal 90 dagen; ouder materiaal wordt niet automatisch uit Firebase verwijderd.

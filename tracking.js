@@ -20,17 +20,20 @@ const identityReady = () => read(KEY, {}).key === sharing.key;
 const device = /iPhone|iPod/.test(navigator.userAgent || '') ? 'iPhone' : /iPad/.test(navigator.userAgent || '') || (/Macintosh/.test(navigator.userAgent || '') && navigator.maxTouchPoints > 1) ? 'iPad' : /Android/.test(navigator.userAgent || '') ? 'Android' : 'Computer';
 if (!pending || typeof pending !== 'object' || Array.isArray(pending)) pending = {};
 let current = null, lastTouch = 0, lastTick = 0, lastSent = 0, flushing = false;
+let state = {}, recent = null;
+const reasons = new Set(['unknown', 'won', 'lost', 'stuck', 'new_game', 'restart', 'menu', 'pause', 'hidden', 'closed', 'idle', 'suspended', 'midnight', 'recovered']);
+const actions = new Set(['move', 'draw', 'recycle', 'undo', 'hint', 'blocked', 'auto_finish', 'input', 'mistake', 'note', 'erase', 'second_chance']);
 const registered = new Set();
 const base = () => String((window.SUDOKU_TRACKING || {}).databaseUrl || '').replace(/\/$/, '');
 // Never resend a stale 'active' state after a browser crash or offline close.
 for (const [id, entry] of Object.entries(pending)) {
   if (!entry || !validKey(entry.key) || !entry.data) delete pending[id];
-  else entry.data.active = false;
+  else { if (entry.data.active && entry.data.detail) { entry.data.detail.reason = 'recovered'; entry.data.detail.ended = entry.data.last; } entry.data.active = false; }
 }
 write(QUEUE, pending);
-function save() {
-  if (!current) return;
-  pending[current.id] = { key: sharing.key, data: { ...current.data } };
+function save(record = current) {
+  if (!record) return;
+  pending[record.id] = { key: sharing.key, data: JSON.parse(JSON.stringify(record.data)) };
   const ids = Object.keys(pending);
   while (ids.length > MAX_PENDING) delete pending[ids.shift()];
   write(QUEUE, pending);
@@ -46,11 +49,35 @@ function account(now) {
   lastTick = now;
   current.data.seconds = Math.floor(current.ms / 1000);
 }
-function stop() {
+function setState(details = {}) {
+  state = { ...state, ...details };
   if (!current) return;
-  account(Date.now());
+  const d = current.data.detail;
+  if (validKey(state.round)) d.round = state.round;
+  for (const k of ['build', 'mode']) if (typeof state[k] === 'string') d[k] = state[k].slice(0, 24);
+  for (const k of ['progress', 'total', 'score', 'gameSeconds']) if (Number.isFinite(state[k])) {
+    const n = Math.round(state[k]);
+    if (k === 'progress' && n > d.progress) d.lastProgressAt = Date.now();
+    d[k] = Math.max(k === 'score' ? -100000 : 0, Math.min(k === 'gameSeconds' ? 9000000 : k === 'score' ? 1000000 : 81, n));
+  }
+  for (const k of ['autoCheck', 'mistakeLimit', 'tapMove', 'autoFinish']) if (typeof state[k] === 'boolean') d[k] = state[k];
+}
+function stop(reason = 'unknown') {
+  if (!reasons.has(reason)) reason = 'unknown';
+  if (!current) {
+    // A menu can stop the timer before its Restart/New game button is chosen.
+    // Refine that observed ending without creating a fictitious play session.
+    if (recent && ['new_game', 'restart'].includes(reason) && ['menu', 'pause', 'idle'].includes(recent.data.detail.reason) && Date.now() - recent.data.detail.ended < 300000) {
+      recent.data.detail.reason = reason; save(recent); flush();
+    }
+    return;
+  }
+  const now = Date.now(); account(now);
+  const d = current.data.detail;
+  d.reason = reason; d.ended = now;
+  if (d.actionAt) d.maxGap = Math.max(d.maxGap, Math.min(120, Math.floor((now - d.actionAt) / 1000)));
   current.data.active = false;
-  save(); current = null;
+  save(); recent = current; current = null;
   flush();
 }
 function touch(newGame = false, details = {}) {
@@ -60,24 +87,44 @@ function touch(newGame = false, details = {}) {
     if (!identityReady()) return false;
   }
   const now = Date.now();
-  if (current && (now - lastTouch >= IDLE || day(now) !== day(current.data.start))) stop();
+  if (current && now - lastTouch >= IDLE) stop('idle');
+  if (current && day(now) !== day(current.data.start)) stop('midnight');
+  state = { ...state, ...details };
   if (!current) {
-    current = { id: randomId(), ms: 0, data: { start: now, last: now, seconds: 0, games: 0, wins: 0, active: true, app: 'sudoku', level: details.level || 'easy', daily: !!details.daily, hints: 0, mistakes: 0 } };
-    lastTick = now; lastSent = 0;
-  } else account(now);
-  lastTouch = now;
-  current.data.last = now;
+    if (!validKey(state.round) || newGame && !validKey(details.round)) state.round = randomId();
+    current = { id: randomId(), ms: 0, data: { start: now, last: now, seconds: 0, games: 0, wins: 0, active: true, app: 'sudoku', level: details.level || state.level || 'easy', daily: !!state.daily, hints: 0, mistakes: 0, detail: {
+      v: 1, round: state.round, reason: 'playing', progress: 0, initial: 0, total: 81, actions: {}, lastAction: 'none', actionAt: 0, lastProgressAt: now, maxGap: 0
+    } } };
+    setState(); current.data.detail.initial = current.data.detail.progress;
+    recent = null; lastTick = now; lastSent = 0;
+  } else { account(now); setState(); }
+  lastTouch = now; current.data.last = now;
   if (newGame) current.data.games++;
   save();
   if (!lastSent) { lastSent = now; flush(); }
   return true;
 }
+function action(name, details = {}) {
+  if (!current || !actions.has(name)) return;
+  const previous = current.data.detail.actionAt;
+  if (!touch(false, details)) return;
+  const d = current.data.detail, now = Date.now();
+  d.actions[name] = Math.min(10000, (d.actions[name] || 0) + 1);
+  if (previous) d.maxGap = Math.max(d.maxGap, Math.min(120, Math.floor((now - previous) / 1000)));
+  d.lastAction = name; d.actionAt = now;
+  if (name === 'hint') current.data.hints = Math.min(1000, current.data.hints + 1);
+  if (name === 'mistake') current.data.mistakes = Math.min(1000, current.data.mistakes + 1);
+  save();
+}
 function tick(playing) {
   if (!current) return;
   const now = Date.now();
-  if (!playing || document.hidden || now - lastTouch >= IDLE || now - lastTick > 5000) return stop();
-  // Split at local midnight so daily totals stay accurate.
-  if (day(now) !== day(current.data.start)) { const details = { level: current.data.level, daily: current.data.daily }; stop(); touch(false, details); return; }
+  if (document.hidden) return stop('hidden');
+  if (!playing) return stop('menu');
+  if (now - lastTick > 5000) return stop('suspended');
+  if (now - lastTouch >= IDLE) return stop('idle');
+  // A midnight boundary is bookkeeping, not evidence that the player quit.
+  if (day(now) !== day(current.data.start)) { stop('midnight'); touch(false, state); return; }
   account(now); save();
   if (now - lastSent >= HEARTBEAT) { lastSent = now; flush(); }
 }
@@ -112,14 +159,14 @@ async function flush() {
   finally { flushing = false; }
 }
 window.SudokuTracking = {
-  touch, tick, stop, flush,
-  hint() { if (current) { current.data.hints++; save(); } },
-  mistake() { if (current) { current.data.mistakes++; save(); } },
-  win() { if (current) { current.data.wins++; stop(); } },
+  touch, tick, stop, flush, action, state: setState, newRound: randomId,
+  hint() { action('hint'); },
+  mistake() { action('mistake'); },
+  win() { if (current) { current.data.wins++; stop('won'); } },
   get deviceId() { return sharing.key; }
 };
-document.addEventListener('visibilitychange', () => { if (document.hidden) stop(); else flush(); });
-addEventListener('pagehide', stop);
+document.addEventListener('visibilitychange', () => { if (document.hidden) stop('hidden'); else flush(); });
+addEventListener('pagehide', () => stop('closed'));
 addEventListener('online', flush);
 setInterval(flush, HEARTBEAT);
 flush();
