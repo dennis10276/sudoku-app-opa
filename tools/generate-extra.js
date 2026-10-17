@@ -1,5 +1,6 @@
 // Extra singles-only puzzles to smooth the start of the level ramp.
 // node tools/generate-extra.js > tools/data/extra.txt
+// optional: node tools/generate-extra.js '[[32,35,400]]'   ([min clues, max clues, count], ...)
 const { solve, rate } = require('../core.js');
 let seed = +process.env.SEED || 4242;
 const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
@@ -14,7 +15,7 @@ function carve(target) {
   }
   return { g, clues };
 }
-const want = [[44, 46, 40], [41, 43, 60], [33, 35, 200]]; // [min, max, count]
+const want = process.argv[2] ? JSON.parse(process.argv[2]) : [[44, 46, 40], [41, 43, 60], [33, 35, 200]]; // [min, max, count]
 for (const [lo, hi, n] of want) {
   let got = 0;
   while (got < n) {

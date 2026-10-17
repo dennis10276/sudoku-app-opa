@@ -6,21 +6,36 @@ const C = require('../core.js');
 const empties = g => g.puz.flatMap((v, i) => v ? [] : [i]);
 const put = (a, i, d) => { a.game.select(i); a.game.input(d); };
 
-test('levels 1–1000 are doable and unique, harder levels come after 1000', () => {
-  const a = app(), g = a.game;
-  assert.ok(g.LEVEL_COUNT >= 1700);
-  for (const n of [1, 2, 50, 200, 400, 401, 650, 700, 701, 850, 999, 1000]) {
+test('all puzzles form one gentle line: only easy thinking up to level 1000, hardest at the end', () => {
+  const a = app(), g = a.game, N = g.LEVEL_COUNT;
+  assert.ok(N >= 4000);
+  const tierAt = n => C.rate(g.levelEntry(n).puz).level;
+  for (let n = 1; n <= 1000; n += 37) assert.equal(tierAt(n), 1, `level ${n} only needs singles`);
+  for (let n = 1001; n <= 1500; n += 41) assert.ok(tierAt(n) <= 2, `level ${n} still doable`);
+  for (const n of [N - 50, N, N + 1, N + 999]) {
     const e = g.levelEntry(n);
     assert.equal(C.solve(e.puz, 2).count, 1, `level ${n} unique`);
-    assert.ok(C.rate(e.puz).level <= 2, `level ${n} doable`);
+    assert.ok(tierAt(n) >= 3, `level ${n} hard`);
   }
-  for (const n of [1001, 1200, 1500, g.LEVEL_COUNT, g.LEVEL_COUNT + 1, g.LEVEL_COUNT + 777]) {
-    const e = g.levelEntry(n);
-    assert.equal(C.solve(e.puz, 2).count, 1, `level ${n} unique`);
-    assert.ok(C.rate(e.puz).level >= 3, `level ${n} hard`);
+  // gentle: the average difficulty of each block of 200 levels never jumps
+  let prev = null;
+  for (let s = 1; s + 199 <= N; s += 200) {
+    let sum = 0, k = 0;
+    for (let n = s; n < s + 200; n += 10) { sum += tierAt(n); k++; }
+    const avg = sum / k;
+    if (prev != null) { assert.ok(avg >= prev - .35, `no drop at ${s}`); assert.ok(avg - prev <= 1.2, `no jump at ${s}: ${prev} → ${avg}`); }
+    prev = avg;
   }
   const clues = n => g.levelEntry(n).puz.filter(Boolean).length;
   assert.ok(clues(1) > clues(500) && clues(500) > clues(1000));
+});
+
+test('the daily challenge is a puzzle from around the player level', () => {
+  const a = app(), g = a.game;
+  const e = g.dailyEntry('2026-10-17', 1);
+  assert.equal(C.solve(e.puz, 2).count, 1);
+  assert.equal(C.rate(e.puz).level, 1);
+  assert.deepEqual(g.dailyEntry('2026-10-17', 1).puz, e.puz);
 });
 
 test('every correct number scores, runs add a growing bonus, a mistake resets the run', () => {

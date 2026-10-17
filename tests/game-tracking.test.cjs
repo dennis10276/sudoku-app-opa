@@ -62,7 +62,8 @@ test('restarting counts a new attempt and switching levels closes the previous s
   const a = app(); a.game.newGame(1); a.game.hint();
   a.game.levelSheet(true);
   a.nodes.get('modal').firstElementChild.onclick({ target: { closest: () => ({ dataset: { a: 'restart' } }) } });
-  a.game.hint(); a.game.newGame(800); a.game.hint(); a.game.show('Home'); await a.flush();
+  const hardLevel = Array.from({ length: a.game.LEVEL_COUNT }, (_, i) => i + 1).find(n => a.game.levelEntry(n).band === 'hard');
+  a.game.hint(); a.game.newGame(hardLevel); a.game.hint(); a.game.show('Home'); await a.flush();
   const records = [...a.records.values()];
   assert.equal(records.length, 3); assert.equal(records.reduce((n, r) => n + r.games, 0), 3);
   assert.deepEqual(records.map(r => r.level), ['easy', 'easy', 'hard']);

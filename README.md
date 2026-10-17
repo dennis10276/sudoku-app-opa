@@ -5,9 +5,9 @@ Klassieke Sudoku in het Nederlands, zonder reclame. Werkt als web-app: open de p
 **Speel:** https://dennis10276.github.io/sudoku-app-opa/
 
 ## Functies
-- **Levels** in plaats van moeilijkheidsgraden: begin bij level 1, elk level is een tikje moeilijker. Tot level 1000 is alles goed te doen (alleen "waar kan dit getal nog?" en af en toe een paar-truc); vanaf level 1001 komen de echt moeilijke puzzels (Expert, Meester, Extreem). Daarna gaat het eindeloos door.
+- **Levels** in plaats van moeilijkheidsgraden: begin bij level 1, elk level is een heel klein beetje moeilijker. Opa ziet alleen zijn levelnummer, nooit hoe moeilijk een puzzel is. Alle 4976 puzzels staan in één rij van makkelijk naar extreem, met een heel geleidelijke overgang; daarna gaat het eindeloos door.
 - **Punten**, zonder tijdsdruk. Bij elk goed getal zweeft een "+x" omhoog met de reden eronder:
-  - goed getal: 10 punten (elke 100 levels 1 meer; vanaf level 1001: 30)
+  - goed getal: 10 punten (elke 100 levels 1 meer)
   - reeks: elk volgend goed getal zonder fout 2 extra, tot 20 extra; een fout begint de reeks opnieuw
   - rij, kolom of blok vol: +30 · alle 9 van een getal: +50
   - level klaar, geen enkele fout, geen hints: elk 10× de punten per getal
@@ -25,21 +25,21 @@ Klassieke Sudoku in het Nederlands, zonder reclame. Werkt als web-app: open de p
 - Spel en voortgang worden automatisch bewaard. Een puzzel van vóór deze versie kan nog worden afgemaakt ("Oude puzzel").
 
 ## Puzzels
-`puzzles.js` wordt gemaakt met `node tools/build-levels.js` uit drie bronnen in `tools/data/`:
-- `generated.js` en `extra.txt`: eigen puzzels (`tools/generate.js`, `tools/generate-extra.js`)
+`puzzles.js` wordt gemaakt met `node tools/build-levels.js` uit deze bronnen in `tools/data/`:
+- `generated.js`, `generated2.js` en `extra.txt`: eigen puzzels (`tools/generate.js`, `tools/generate-extra.js`)
 - `collection.txt`: 626 vrij te gebruiken puzzels (Public Domain / CC0) uit de "Free to Use Sudoku Puzzle Collection" (SudokuEngine)
 
-Elke puzzel heeft precies één oplossing en wordt ingedeeld op de technieken die nodig zijn (`core.js`). Daarna krijgt hij een fijnere moeilijkheidsscore (aantal gegeven cijfers, hoeveel keuze er bij elke stap is) en worden de levels gesorteerd:
+Elke puzzel heeft precies één oplossing en wordt ingedeeld op de technieken die nodig zijn (`core.js`): alleen "enige plek", paren, drietallen/X-wing/XY-wing, korte ketens, langere ketens. Binnen een groep gaat het van veel naar weinig gegeven cijfers. De groepen volgen elkaar op met lange overgangen: over honderden levels groeit het aandeel van de volgende soort heel geleidelijk van 0% naar 100%.
 
 | Levels | Wat |
 | --- | --- |
-| 1–400 | alleen "enige plek", van ±45 naar ±37 gegeven cijfers |
-| 401–700 | idem, minder gegeven cijfers |
-| 701–1000 | steeds vaker een paar-truc (zoals Moeilijk) |
-| 1001–1796 | Expert, Meester, Extreem |
-| 1797+ | de moeilijke puzzels opnieuw, steeds anders omgezet |
+| 1–2000 | alleen "enige plek", van ±45 naar ±31 gegeven cijfers |
+| ±2000–2900 | steeds vaker een puzzel waarbij paren helpen |
+| ±2900–4100 | geleidelijk drietallen, X-wing, XY-wing, korte ketens |
+| ±4100–4976 | de moeilijkste |
+| 4977+ | de laatste 1000 opnieuw, steeds anders omgezet |
 
-De ±690 overgebleven makkelijke puzzels zijn voor de dagelijkse uitdaging (voor iedereen op dezelfde dag dezelfde opzet, in de buurt van je eigen level).
+De dagelijkse uitdaging is een puzzel van rond je eigen level, anders omgezet zodat hij er nieuw uitziet (voor iedereen op dezelfde dag dezelfde opzet).
 
 ## Bestanden
 - `index.html`, `style.css`, `game.js` – het spel
@@ -51,7 +51,7 @@ De ±690 overgebleven makkelijke puzzels zijn voor de dagelijkse uitdaging (voor
 
 Bij een nieuwe versie: verhoog `CACHE` in `sw.js` (en `?v=` in `index.html`) zodat iPhones de update meteen ophalen.
 
-Het familieoverzicht krijgt per spel nog steeds een moeilijkheidsnaam (`easy` … `extreme`): levels 1–400 = easy, 401–700 = medium, 701–1000 = hard, daarna expert/master/extreme. Zo blijven de database-regels en het dashboard van Patience werken.
+Het familieoverzicht krijgt per spel nog steeds een moeilijkheidsnaam (`easy` … `extreme`), afgeleid van de soort puzzel (alleen voor het overzicht; in het spel is die nergens te zien). Zo blijven de database-regels en het dashboard van Patience werken.
 
 ## Online familieoverzicht
 

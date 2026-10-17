@@ -46,12 +46,11 @@ const todayKey = () => dateKey(new Date());
 const later = (fn, ms) => setTimeout(fn, ms);
 
 /* ================= levels ================= */
-// puzzles.js holds the ordered levels (81 digits + a band letter each). Levels 1–1000 only need
-// "where can this number go" thinking; from 1001 on the hard puzzles start.
+// puzzles.js holds every puzzle as one list of levels, from easiest to hardest, rising very slowly.
+// The letter after each puzzle only feeds the family overview; opa only ever sees his level number.
 const BANDS = { e: 'easy', m: 'medium', h: 'hard', x: 'expert', M: 'master', X: 'extreme' };
 const LEVEL_COUNT = LEVEL_DATA.length / 82;
-const DAILY_COUNT = DAILY_DATA.length / 82;
-const HARD_FROM = 1001;
+const REPEAT_SPAN = Math.min(1000, LEVEL_COUNT);   // after the last level: the hardest ones again, rearranged
 const MEDAL_EVERY = 50;
 // Relabel digits, swap rows/columns inside bands, swap bands, maybe mirror: same puzzle, new look.
 function transform(g, rnd) {
@@ -64,19 +63,16 @@ function transform(g, rnd) {
 const entryAt = (data, k) => ({ puz: data.substr(k * 82, 81).split('').map(Number), letter: data[k * 82 + 81] });
 function levelEntry(n) {
   if (n <= LEVEL_COUNT) { const e = entryAt(LEVEL_DATA, n - 1); return { puz: e.puz, band: BANDS[e.letter] || 'hard' }; }
-  // after the last stored level: keep going with the hard puzzles in a new arrangement
-  const span = LEVEL_COUNT - HARD_FROM + 1;
-  const e = entryAt(LEVEL_DATA, HARD_FROM - 1 + ((n - HARD_FROM) % span));
+  const e = entryAt(LEVEL_DATA, LEVEL_COUNT - REPEAT_SPAN + ((n - LEVEL_COUNT - 1) % REPEAT_SPAN));
   return { puz: transform(e.puz, mulberry(hashStr('level-' + n))), band: BANDS[e.letter] || 'extreme' };
 }
-const baseFor = n => n < HARD_FROM ? 10 + Math.floor((n - 1) / 100) : 30 + Math.floor((n - HARD_FROM) / 100);
-// The daily challenge comes from the spare doable puzzles, picked near the player's own level.
+const baseFor = n => 10 + Math.floor((Math.max(1, n) - 1) / 100);
+// The daily challenge is a puzzle from around the player's own level, rearranged so it looks new.
 function dailyEntry(key, playerLevel) {
   const h = hashStr('dag-' + key);
-  const center = Math.round(Math.min(1, (playerLevel - 1) / 1000) * (DAILY_COUNT - 1));
-  const k = Math.max(0, Math.min(DAILY_COUNT - 1, center + (h % 121) - 60));
-  const e = entryAt(DAILY_DATA, k);
-  return { puz: transform(e.puz, mulberry(h)), band: k < DAILY_COUNT / 3 ? 'easy' : k < DAILY_COUNT * 2 / 3 ? 'medium' : 'hard' };
+  const k = Math.max(0, Math.min(LEVEL_COUNT - 1, Math.min(playerLevel, LEVEL_COUNT) - 1 + (h % 41) - 20));
+  const e = entryAt(LEVEL_DATA, k);
+  return { puz: transform(e.puz, mulberry(h)), band: BANDS[e.letter] || 'easy' };
 }
 
 /* ================= state ================= */
@@ -292,7 +288,7 @@ function snap(i) { return { i, v: G.val[i], n: G.notes[i] }; }
 function trackingDetails() {
   if (!G) return {};
   if (!G.playId) G.playId = playTracking?.newRound();
-  return { round: G.playId, build: 'sudoku-6', level: G.level, daily: !!G.daily,
+  return { round: G.playId, build: 'sudoku-7', level: G.level, daily: !!G.daily,
     progress: G.val.reduce((n, v, i) => n + (!G.puz[i] && v === G.sol[i] ? 1 : 0), 0),
     total: G.puz.filter(v => !v).length, score: G.score, gameSeconds: G.time,
     autoCheck: !!S.autoCheck, mistakeLimit: !!S.mistakeLimit };
@@ -823,7 +819,7 @@ function rulesSheet(back) {
       <p><b>Notities:</b> zet Notities aan om kleine hulpgetallen in een vakje te zetten. Tik nog eens op hetzelfde getal om het weer weg te halen.</p>
       <p><b>Hint:</b> kies een leeg vakje en tik op Hint, of tik op Hint zonder vakje: dan wordt een makkelijk vakje voor je ingevuld, met uitleg.</p>
       <p><b>Fouten:</b> een fout getal wordt rood. Na 3 fouten is het spel voorbij, maar je kunt verder met een tweede kans. Lukt een level twee keer niet, dan mag je het overslaan.</p>
-      <p><b>Levels:</b> elk level is een tikje moeilijker dan het vorige. Tot level 1000 is alles goed te doen; daarna worden ze echt moeilijk.</p>
+      <p><b>Levels:</b> elk level is een heel klein beetje moeilijker dan het vorige. Zo word je vanzelf steeds beter.</p>
     </div>
     <div class="btns"><button class="btn primary big" data-a="ok">${back ? 'Terug' : 'Begrepen'}</button></div>`, {
     ok: () => back ? settingsSheet() : closeSheet(),
@@ -946,7 +942,7 @@ function renderLevels() {
   let html = '';
   for (let n = lvPage * PAGE + 1; n <= (lvPage + 1) * PAGE; n++) {
     const b = P.best[n], open = n <= P.level, st = b ? b.t : 0;
-    const cls = ['lv', open ? '' : 'locked', n === P.level ? 'cur' : '', b ? 'done' : '', n % MEDAL_EVERY === 0 ? 'medal' : '', n >= HARD_FROM ? 'hard' : ''].join(' ');
+    const cls = ['lv', open ? '' : 'locked', n === P.level ? 'cur' : '', b ? 'done' : '', n % MEDAL_EVERY === 0 ? 'medal' : ''].join(' ');
     html += `<button class="${cls}" data-n="${n}" ${open ? '' : 'disabled'} aria-label="Level ${n}">
       ${open ? `<b>${n}</b>` : `<svg viewBox="0 0 24 24"><use href="#i-lock"/></svg><b>${n}</b>`}
       <span class="lv-st">${[0, 1, 2].map(k => `<i class="${k < st ? 'f' : ''}"></i>`).join('')}</span>
@@ -1139,6 +1135,6 @@ function boot() {
   }
 }
 // testing hook
-window.__sudoku = { get G() { return G; }, set G(v) { G = v; }, get sel() { return sel; }, select, input, hint, undo, erase, toggleNotes, newGame, playLevel, show, render, P, S, win, levelSheet, settingsSheet, dailyDone, finishReceipt, closeReceipt, levelEntry, baseFor, LEVEL_COUNT };
+window.__sudoku = { get G() { return G; }, set G(v) { G = v; }, get sel() { return sel; }, select, input, hint, undo, erase, toggleNotes, newGame, playLevel, show, render, P, S, win, levelSheet, settingsSheet, dailyDone, finishReceipt, closeReceipt, levelEntry, baseFor, LEVEL_COUNT, dailyEntry };
 boot();
 })();

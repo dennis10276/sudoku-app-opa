@@ -1,14 +1,16 @@
-// Builds puzzles.js: the ordered level list and the daily-challenge pool.
+// Builds puzzles.js: every puzzle as one ordered list of levels, from easiest to hardest.
 // node tools/build-levels.js
-// Sources: tools/data/generated.js and tools/data/extra.txt (own generator) and tools/data/collection.txt (free CC0 collection).
+// Sources: tools/data/generated*.js and tools/data/extra.txt (own generator) and tools/data/collection.txt (free CC0 collection).
 const fs = require('fs'), path = require('path');
 const C = require('../core.js');
 const here = f => path.join(__dirname, f);
 
 // ---------- gather ----------
 const src = [];
-const gen = {}; new Function('out', fs.readFileSync(here('data/generated.js'), 'utf8').replace('const PUZZLES', 'out.P') )(gen);
-for (const s of Object.values(gen.P)) for (let i = 0; i < s.length; i += 81) src.push(s.substr(i, 81));
+for (const f of ['data/generated.js', 'data/generated2.js']) {
+  const gen = {}; new Function('out', fs.readFileSync(here(f), 'utf8').replace('const PUZZLES', 'out.P'))(gen);
+  for (const s of Object.values(gen.P)) for (let i = 0; i < s.length; i += 81) src.push(s.substr(i, 81));
+}
 for (const line of fs.readFileSync(here('data/collection.txt'), 'utf8').split(/\r?\n/)) {
   const m = line.match(/^([0-9.]{81}),/); if (m) src.push(m[1].replace(/\./g, '0'));
 }
@@ -44,7 +46,7 @@ for (const p of uniq) {
   let tier = r.level === 1 ? 1 : r.level === 2 ? 2 : r.level <= 4 ? 3 : (r.chains >= 3 || r.chainMax > 2 || r.level === 6) ? 5 : 4;
   let score;
   if (tier === 1) { const sp = singlesProfile(g); score = (45 - clues) * 1.0 + sp.tight * 0.35 + sp.hiddenOnly * 0.25 - sp.avg * 0.6; }
-  else score = (45 - clues) + (r.chains || 0) * 2;
+  else score = (45 - clues) + (r.chains || 0) * 2 + (r.level === 4 ? 8 : 0);   // inside the expert tier: X-wing/triples before XY-wings
   items.push({ p, tier, clues, score, band: null });
 }
 const by = t => items.filter(x => x.tier === t).sort((a, b) => a.score - b.score);
@@ -52,33 +54,47 @@ const t1 = by(1), t2 = by(2), t3 = by(3), t4 = by(4), t5 = by(5);
 console.log('pool', { singles: t1.length, pairs: t2.length, expert: t3.length, master: t4.length, extreme: t5.length });
 
 // ---------- order ----------
+// One gentle line from easiest to hardest. Tiers follow each other, but every change of tier is a long
+// crossfade: over L levels the share of the next kind of puzzle rises evenly from 0% to 100%, while the
+// hardest puzzles of the easier tier are used up. Each tier is consumed easiest-first.
+const tiers = [t1, t2, t3, t4, t5];
+const n = tiers.map(t => t.length), L = [0, 0, 0, 0];
+L[3] = Math.min(n[3], 2 * n[4]);
+L[2] = Math.min(2 * n[3] - L[3], n[2]);
+L[1] = Math.min(2 * n[2] - L[2], n[1]);
+L[0] = Math.min(2 * n[1] - L[1], 1000);
+console.log('crossfades', L);
 const levels = [];
-const take = (arr, band) => { const x = arr.shift(); x.band = band; levels.push(x); };
-for (let n = 1; n <= 400; n++) take(t1, 'e');                 // 1–400   very easy → easy
-for (let n = 401; n <= 700; n++) take(t1, 'm');               // 401–700 singles, fewer clues
-// 701–1000: hardest singles mixed with a growing share of pair puzzles
-const pairsWanted = Math.min(t2.length, 160);
-for (let n = 701, used = 0; n <= 1000; n++) {
-  const share = (n - 700) / 300;                             // 0 → 1
-  const want = Math.round(pairsWanted * share * share);      // slow start, more at the end
-  if (used < want && t2.length) { take(t2, 'h'); used++; } else take(t1.length ? t1 : t2, 'h');
+const pos = tiers.map(() => 0);
+const take = t => levels.push(tiers[t][pos[t]++]);
+for (let t = 0; t < 5; t++) {
+  // this tier alone
+  const alone = n[t] - (t ? L[t - 1] / 2 : 0) - (t < 4 ? L[t] / 2 : 0);
+  for (let k = 0; k < Math.round(alone); k++) if (pos[t] < n[t]) take(t);
+  if (t === 4) break;
+  // crossfade to the next tier
+  let usedNext = 0;
+  for (let j = 0; j < L[t]; j++) {
+    const want = Math.round((j + 1) * (j + 1) / (2 * L[t]));   // area under a straight 0→1 ramp
+    if (usedNext < want && pos[t + 1] < n[t + 1]) { take(t + 1); usedNext++; }
+    else if (pos[t] < n[t]) take(t); else { take(t + 1); usedNext++; }
+  }
+  while (pos[t] < n[t]) take(t);               // rounding leftovers
 }
-// the leftovers stay doable: they become the daily challenges
-const daily = [...t1, ...t2].sort((a, b) => a.score - b.score);
-t1.length = 0; t2.length = 0;
-for (const x of t3) take([x], 'x');
-for (const x of t4) take([x], 'M');
-for (const x of t5) take([x], 'X');
-console.log('levels', levels.length, 'daily', daily.length);
-const chk = (a, b) => { const s = levels.slice(a - 1, b); return `${a}-${b}: clues ${(s.reduce((n, x) => n + x.clues, 0) / s.length).toFixed(1)}, pairs ${s.filter(x => x.tier === 2).length}`; };
-[[1, 20], [21, 50], [51, 100], [101, 200], [301, 400], [401, 500], [201, 400], [401, 700], [701, 850], [851, 1000], [1001, 1266], [1267, 1550], [1551, levels.length]].forEach(([a, b]) => console.log(chk(a, b)));
+for (let t = 0; t < 5; t++) while (pos[t] < n[t]) take(t);
+levels.forEach((x, k) => { x.band = x.tier === 1 ? (k < 1000 ? 'e' : 'm') : 'hxMX'[x.tier - 2]; });
+console.log('levels', levels.length);
+for (let a = 1; a <= levels.length; a += 100) {
+  const s = levels.slice(a - 1, a + 99);
+  const t = [1, 2, 3, 4, 5].map(k => s.filter(x => x.tier === k).length);
+  console.log(`${a}-${a + s.length - 1}: clues ${(s.reduce((n, x) => n + x.clues, 0) / s.length).toFixed(1)}  tiers ${t.join('/')}`);
+}
 
 // ---------- write ----------
-const enc = list => list.map(x => x.p + (x.band || 'd')).join('');
-const out = `/* Generated by tools/build-levels.js. Every entry is 81 digits (0 = empty) plus one band letter:
-   e/m/h = doable (levels 1–1000), x/M/X = hard (expert, master, extreme), d = daily challenge. */
+const enc = list => list.map(x => x.p + x.band).join('');
+const out = `/* Generated by tools/build-levels.js. Levels from easiest to hardest; every entry is 81 digits
+   (0 = empty) plus one letter for the family overview: e/m easy/medium, h hard, x expert, M master, X extreme. */
 const LEVEL_DATA = '${enc(levels)}';
-const DAILY_DATA = '${enc(daily)}';
 `;
 fs.writeFileSync(path.join(__dirname, '..', 'puzzles.js'), out);
 console.log('wrote puzzles.js', out.length, 'bytes');
