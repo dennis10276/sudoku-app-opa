@@ -15,7 +15,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="style.css?v=5">
+<link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
 
@@ -27,17 +27,38 @@
     <button class="icon-btn top-side" data-act="settings" aria-label="Instellingen"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg></button>
   </header>
   <div class="home-body">
-    <div class="home-art" aria-hidden="true" id="homeArt"></div>
+    <div class="hero">
+      <div class="hero-tile" aria-hidden="true"><span>Level</span><b id="homeLevel">1</b></div>
+      <div class="hero-stats">
+        <div><b id="homeScore">0</b><span>punten</span></div>
+        <div><b id="homeStars">0</b><span>sterren</span></div>
+        <div><b id="homeMedals">0</b><span>medailles</span></div>
+      </div>
+      <div class="hero-track"><i id="homeBar"></i><span class="medal" id="homeMedal">50</span></div>
+      <p class="hero-togo" id="homeTogo">Nog 49 levels tot je eerste medaille</p>
+    </div>
+    <div class="home-btns">
+      <button class="btn primary big" id="homePlay"><span id="homePlayTxt">Speel level 1</span><small id="homePlaySub" hidden></small></button>
+      <button class="btn big" id="homeNext" hidden><span id="homeNextTxt">Speel level 1</span></button>
+    </div>
+
     <button class="daily-card" id="homeDaily">
       <span class="dc-ic"><svg viewBox="0 0 24 24"><use href="#i-cal"/></svg><b id="homeDailyDay">11</b></span>
       <span class="dc-txt"><b>Dagelijkse uitdaging</b><span id="homeDailyDate">zondag 11 oktober</span></span>
       <span class="dc-go" id="homeDailyGo">Spelen</span>
     </button>
-    <div class="home-btns">
-      <button class="btn primary big" id="homeContinue" hidden><span>Verder spelen</span><small id="homeContinueSub"></small></button>
-      <button class="btn big" id="homeNew"><span>Nieuw spel</span></button>
-    </div>
   </div>
+</section>
+
+<!-- ============ Levels ============ -->
+<section class="screen" id="scrLevels">
+  <header class="top">
+    <span class="top-side"></span>
+    <h1 class="title">Levels</h1>
+    <button class="icon-btn top-side" data-act="settings" aria-label="Instellingen"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg></button>
+  </header>
+  <div class="chips" id="lvChips"></div>
+  <div class="lv-body"><div class="lv-grid" id="lvGrid"></div></div>
 </section>
 
 <!-- ============ Dagelijks ============ -->
@@ -75,7 +96,6 @@
     <h1 class="title">Statistieken</h1>
     <button class="icon-btn top-side" data-act="settings" aria-label="Instellingen"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg></button>
   </header>
-  <div class="chips" id="sChips"></div>
   <div class="stats-body" id="sBody"></div>
 </section>
 
@@ -83,17 +103,17 @@
 <section class="screen" id="scrGame">
   <header class="top game-top">
     <button class="icon-btn top-side back" id="gBack" aria-label="Terug"><svg viewBox="0 0 24 24"><use href="#i-left"/></svg><span>Start</span></button>
-    <h1 class="title" id="gTitle">Gemiddeld</h1>
+    <h1 class="title" id="gTitle">Level 1</h1>
     <button class="icon-btn top-side" data-act="settings" aria-label="Instellingen"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg></button>
   </header>
   <div class="info">
     <div class="info-item" id="gMistBox"><span>Fouten</span><b id="gMist">0/3</b></div>
-    <div class="info-item"><span>Score</span><b id="gScore">0</b></div>
+    <div class="info-item score" id="gScoreBox"><span>Score</span><b id="gScore">0</b></div>
     <div class="info-item" id="gTimeBox"><span>Tijd</span><b id="gTime">00:00</b></div>
     <button class="pause-btn" id="gPause" aria-label="Pauze"><svg viewBox="0 0 24 24"><use href="#i-pause"/></svg></button>
   </div>
   <div class="board-wrap" id="boardWrap">
-    <div class="board" id="board"></div>
+    <div class="board" id="board"><div class="pops" id="pops" aria-live="polite"></div></div>
     <div class="paused" id="paused" hidden>
       <button class="resume" id="gResume" aria-label="Verder"><svg viewBox="0 0 24 24"><use href="#i-play"/></svg></button>
       <b>Gepauzeerd</b>
@@ -112,6 +132,7 @@
 
 <nav class="tabbar" id="tabbar">
   <button data-tab="Home"><svg viewBox="0 0 24 24"><use href="#i-home"/></svg><span>Start</span></button>
+  <button data-tab="Levels"><svg viewBox="0 0 24 24"><use href="#i-grid"/></svg><span>Levels</span></button>
   <button data-tab="Daily"><svg viewBox="0 0 24 24"><use href="#i-cal"/></svg><span>Dagelijks</span></button>
   <button data-tab="Stats"><svg viewBox="0 0 24 24"><use href="#i-chart"/></svg><span>Statistieken</span></button>
 </nav>
@@ -163,13 +184,42 @@
         <li>Vul de getallen <b>1 tot en met 9</b> in. Elk getal komt in elke rij, elke kolom en elk blok van 3×3 precies één keer voor.</li>
         <li><b>Tik op een vakje</b> en daarna op een getal onderaan.</li>
         <li>Met <b>Notities</b> zet je kleine hulpgetallen in een vakje. <b>Hint</b> helpt je verder als je vastzit.</li>
-        <li>Zes niveaus, van <b>Makkelijk</b> tot <b>Extreem</b>, en elke dag een nieuwe <b>dagelijkse uitdaging</b>.</li>
-        <li>Het spel wordt <b>vanzelf bewaard</b>. Grotere cijfers en andere instellingen vind je onder het tandwiel.</li>
+        <li>Begin bij <b>level 1</b>: elk level is een tikje moeilijker. Verdien <b>punten</b>, <b>sterren</b> en elke 50 levels een <b>medaille</b>.</li>
+        <li>Het spel wordt <b>vanzelf bewaard</b>. Nog grotere cijfers en andere instellingen vind je onder het tandwiel.</li>
       </ul>
     </article>
 
     <button id="ldPlay2" class="ld-play ld-play-bottom">Spelen</button>
     <p class="ld-foot">Geen reclame · Werkt zonder internet · Wordt vanzelf bewaard</p>
+  </div>
+</section>
+
+<!-- ============ Puntenbon na een opgeloste puzzel ============ -->
+<section id="receipt" hidden>
+  <canvas id="rcFx"></canvas>
+  <div class="rc-wrap">
+    <button class="rc-homeic" data-rc="home" aria-label="Naar het begin"><svg viewBox="0 0 24 24"><use href="#i-home"/></svg></button>
+    <div class="rc-head">
+      <div class="rc-mini" id="rcMini"></div>
+      <div class="rc-res">
+        <p class="rc-lv" id="rcLv">Level 1</p>
+        <h1 id="rcTitle">Opgelost!</h1>
+        <div class="rc-stars" id="rcStars"></div>
+        <p class="rc-why" id="rcWhy"></p>
+      </div>
+    </div>
+    <div class="rc-slip">
+      <div id="rcLines"></div>
+      <div class="rc-sum"><span class="rc-lbl">Punten<span class="rc-rec" id="rcRec">Record</span></span><b class="rc-big" id="rcTot">0</b></div>
+    </div>
+    <div class="rc-prog" id="rcProg">
+      <div class="rc-totrow"><span>Je totaal</span><b id="rcGrand">0</b></div>
+      <div class="rc-track"><i id="rcBar"></i><span class="medal" id="rcMedal">50</span></div>
+      <div class="rc-togo" id="rcTogo"></div>
+    </div>
+    <div class="rc-cta" id="rcCta">
+      <button class="rc-next" data-rc="next" id="rcNext">Speel level 2</button>
+    </div>
   </div>
 </section>
 
@@ -191,15 +241,17 @@
     <symbol id="i-erase" viewBox="0 0 24 24"><path d="M20 20H9.5L4.6 15.1a1.5 1.5 0 0 1 0-2.1L13 4.6a1.5 1.5 0 0 1 2.1 0l4.3 4.3a1.5 1.5 0 0 1 0 2.1L11 19.5"/><path d="M8.5 9.5l6 6"/></symbol>
     <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20l1-4.5L15.5 5a2.1 2.1 0 0 1 3 3L8 18.5z"/><path d="M13.5 7l3 3"/></symbol>
     <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5 10 17.5 19 7"/></symbol>
-    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.8l-5.2 2.8 1-5.8-4.3-4.1 5.9-.8z"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 2.2l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.1l-5.9 3.1 1.2-6.5L2.5 9.1l6.6-.9z"/></symbol>
   </defs>
 </svg>
 
-<script src="puzzles.js?v=5"></script>
-<script src="core.js?v=5"></script>
-<script src="tracking-config.js?v=5"></script>
-<script src="tracking.js?v=5"></script>
-<script src="game.js?v=5"></script>
+<script src="puzzles.js?v=6"></script>
+<script src="core.js?v=6"></script>
+<script src="tracking-config.js?v=6"></script>
+<script src="tracking.js?v=6"></script>
+<script src="game.js?v=6"></script>
 </body>
 </html>

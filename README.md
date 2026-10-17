@@ -5,35 +5,53 @@ Klassieke Sudoku in het Nederlands, zonder reclame. Werkt als web-app: open de p
 **Speel:** https://dennis10276.github.io/sudoku-app-opa/
 
 ## Functies
-- Zes niveaus: Makkelijk, Gemiddeld, Moeilijk, Expert, Meester, Extreem
-- Dagelijkse uitdaging met kalender en maandtrofee
-- Notities (potloodstreepjes), Wissen, onbeperkt Ongedaan maken
-- Hint die een vakje invult en uitlegt waarom ("In deze rij kan de 5 alleen nog hier.")
+- **Levels** in plaats van moeilijkheidsgraden: begin bij level 1, elk level is een tikje moeilijker. Tot level 1000 is alles goed te doen (alleen "waar kan dit getal nog?" en af en toe een paar-truc); vanaf level 1001 komen de echt moeilijke puzzels (Expert, Meester, Extreem). Daarna gaat het eindeloos door.
+- **Punten**, zonder tijdsdruk. Bij elk goed getal zweeft een "+x" omhoog met de reden eronder:
+  - goed getal: 10 punten (elke 100 levels 1 meer; vanaf level 1001: 30)
+  - reeks: elk volgend goed getal zonder fout 2 extra, tot 20 extra; een fout begint de reeks opnieuw
+  - rij, kolom of blok vol: +30 · alle 9 van een getal: +50
+  - level klaar, geen enkele fout, geen hints: elk 10× de punten per getal
+  - hints geven geen punten; de tijd telt nooit mee
+- **Sterren** per level: ★ opgelost, ★★ hooguit één fout, ★★★ geen fouten en geen hints. Elke 50 levels een **medaille**.
+- **Puntenbon** na elk level: de opgeloste puzzel licht op bij elke regel (welke getallen, welke reeks, welke rijen/kolommen/blokken), met sterren, record, totaalscore en de weg naar de volgende medaille. Tikken slaat de animatie over.
+- Opnieuw spelen van een level kan altijd; alleen een betere score telt mee in het totaal.
+- Twee keer verloren op hetzelfde level? Dan mag je het overslaan.
+- **Dagelijkse uitdaging** met kalender, afgestemd op je eigen level.
+- Groot, vet en contrastrijk bord: het bord loopt bijna van rand tot rand, cijfers vullen het vakje; notities staan precies in het midden van hun plekje. "Extra groot" in de instellingen.
+- Notities, Wissen, onbeperkt Ongedaan maken, Hint met uitleg ("In deze rij kan de 5 alleen nog hier.")
 - Fouten worden rood; na 3 fouten is het spel voorbij, met een tweede kans
-- Markeren van rij/kolom/blok, dezelfde getallen en dubbele getallen
-- Score, tijd met pauzeknop, statistieken per niveau (gespeeld, gewonnen, beste tijd, reeksen)
-- Instellingen: grote cijfers, licht/donker, geluid, tijd tonen, fouten tonen, foutenlimiet, notities vanzelf weghalen, gebruikte getallen verbergen
+- Tijd staat standaard uit (aan te zetten in de instellingen)
 - Staand en liggend scherm, iPhone en iPad; ook te spelen met het toetsenbord (1–9, pijltjes, Backspace, N, H)
-- Spel wordt automatisch bewaard
+- Spel en voortgang worden automatisch bewaard. Een puzzel van vóór deze versie kan nog worden afgemaakt ("Oude puzzel").
 
 ## Puzzels
-`puzzles.js` bevat per niveau 260 puzzels met precies één oplossing, gemaakt met `tools/generate.js` en ingedeeld op de technieken die nodig zijn om ze op te lossen (`core.js`):
-- Makkelijk / Gemiddeld: alleen "enige mogelijkheid" (Makkelijk ±37 cijfers gegeven, Gemiddeld ±30)
-- Moeilijk: paren en uitsluiten binnen een blok
-- Expert: drietallen, X-wing, swordfish, XY-wing
-- Meester / Extreem: vragen om vooruitdenken ("als hier een 3 staat, loopt het vast")
+`puzzles.js` wordt gemaakt met `node tools/build-levels.js` uit drie bronnen in `tools/data/`:
+- `generated.js` en `extra.txt`: eigen puzzels (`tools/generate.js`, `tools/generate-extra.js`)
+- `collection.txt`: 626 vrij te gebruiken puzzels (Public Domain / CC0) uit de "Free to Use Sudoku Puzzle Collection" (SudokuEngine)
 
-Elke puzzel wordt bij het starten willekeurig omgezet (cijfers verwisseld, rijen/kolommen binnen een band geschud, gespiegeld), zodat geen twee spellen hetzelfde ogen. De dagelijkse uitdaging is voor iedereen op dezelfde dag dezelfde.
+Elke puzzel heeft precies één oplossing en wordt ingedeeld op de technieken die nodig zijn (`core.js`). Daarna krijgt hij een fijnere moeilijkheidsscore (aantal gegeven cijfers, hoeveel keuze er bij elke stap is) en worden de levels gesorteerd:
 
-Nieuwe puzzels maken: `node tools/generate.js deel.json 65` (een paar keer met verschillende `SEED=`), daarna `node tools/merge.js puzzles.js deel*.json`.
+| Levels | Wat |
+| --- | --- |
+| 1–400 | alleen "enige plek", van ±45 naar ±37 gegeven cijfers |
+| 401–700 | idem, minder gegeven cijfers |
+| 701–1000 | steeds vaker een paar-truc (zoals Moeilijk) |
+| 1001–1796 | Expert, Meester, Extreem |
+| 1797+ | de moeilijke puzzels opnieuw, steeds anders omgezet |
+
+De ±690 overgebleven makkelijke puzzels zijn voor de dagelijkse uitdaging (voor iedereen op dezelfde dag dezelfde opzet, in de buurt van je eigen level).
 
 ## Bestanden
 - `index.html`, `style.css`, `game.js` – het spel
 - `core.js` – oplosser en moeilijkheidsbepaling
-- `puzzles.js` – de puzzels
+- `puzzles.js` – de levels en de dagelijkse puzzels
+- `tracking.js`, `tracking-config.js` – familieoverzicht (zie hieronder)
 - `manifest.webmanifest`, `sw.js`, `icons/` – beginscherm-icoon en offline werken
+- `tests/` – `node --test tests/*.test.cjs`
 
 Bij een nieuwe versie: verhoog `CACHE` in `sw.js` (en `?v=` in `index.html`) zodat iPhones de update meteen ophalen.
+
+Het familieoverzicht krijgt per spel nog steeds een moeilijkheidsnaam (`easy` … `extreme`): levels 1–400 = easy, 401–700 = medium, 701–1000 = hard, daarna expert/master/extreme. Zo blijven de database-regels en het dashboard van Patience werken.
 
 ## Online familieoverzicht
 
