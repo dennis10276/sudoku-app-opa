@@ -141,3 +141,16 @@ detailversies. Validatie wordt uitgebreid voor de twee begrensde tellerkaarten; 
 Het dashboard groepeert de geschiedenis per dag en poging, met compacte grafieken en een uur/weekdag-heatmap zoals Mahjong. De technische meetrecords zijn standaard ingeklapt. Losse oude records zonder pogingcode worden niet op basis van een gok samengevoegd tot één spel.
 
 Automatische browserruns (`navigator.webdriver`) sturen geen speelgegevens of spelersprofielen naar Firebase. Handmatig spelen, inclusief DennisTEST, blijft automatisch gemeten.
+
+## Overzetten en Android
+
+Instellingen → **Voortgang overzetten naar een ander apparaat** maakt een link en QR-code
+(`#overzetten=…`, gecomprimeerd met deflate-raw). Op het andere apparaat vraagt het spel om
+bevestiging en neemt dan level, punten, sterren, statistieken, dagelijkse uitdagingen,
+instellingen en de meetcode over, zodat het dashboard het als hetzelfde apparaat ziet.
+Een half gespeelde puzzel gaat niet mee.
+
+Onderaan het startscherm staat een klein, vaag knopje **Android**. Daar kun je de app
+installeren via Chrome (`beforeinstallprompt`), of anders via menu ⋮ → App installeren.
+
+QR-codes: `qrcode.js` is qrcode-generator 1.4.4 van Kazuhiko Arase (MIT-licentie).

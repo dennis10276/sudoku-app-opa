@@ -1,7 +1,7 @@
 /* Offline support. Network first (so updates arrive right away), cache as fallback. */
-const CACHE = 'sudoku-v15';
-const FILES = ['./', 'index.html', 'style.css?v=15', 'game.js?v=15', 'tracking-config.js?v=15', 'tracking.js?v=15', 'core.js?v=15', 'puzzles.js?v=15', 'manifest.webmanifest',
-  'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/favicon-32.png'];
+const CACHE = 'sudoku-v16';
+const FILES = ['./', 'index.html', 'style.css?v=16', 'game.js?v=16', 'tracking-config.js?v=16', 'tracking.js?v=16', 'core.js?v=16', 'puzzles.js?v=16', 'manifest.webmanifest',
+  'qrcode.js?v=1', 'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/favicon-32.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));

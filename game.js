@@ -752,6 +752,7 @@ function settingsSheet() {
   acts.rules = () => rulesSheet(true);
   acts.points = () => pointsSheet(true);
   acts.install = () => { closeSheet(); showLanding(true); };
+  acts.transfer = () => transferSheet();
   acts.restartLvl = () => { closeSheet(); restartGame(); };
   acts.reset = () => confirmSheet('Alles opnieuw beginnen?', 'Je gaat terug naar level 1. Alle punten, sterren en dagelijkse uitdagingen worden gewist. Dit kan niet ongedaan worden gemaakt.', 'Alles wissen', () => {
     Object.assign(P, { level: 1, best: {}, total: 0, fails: {}, wins: 0, bestWins: 0, played: 0 }); saveProgress();
@@ -784,6 +785,7 @@ function settingsSheet() {
       <button class="set-row link" data-a="points">Zo verdien je punten</button>
       <button class="set-row link" data-a="rules">Spelregels</button>
       <button class="set-row link" data-a="install">Op het beginscherm zetten</button>
+      <button class="set-row link" data-a="transfer">Voortgang overzetten naar een ander apparaat</button>
       <button class="set-row link" data-a="reset" style="color:var(--err)">Alles opnieuw beginnen</button>
     </div>
     <div class="btns"><button class="btn primary big" data-a="close">Klaar</button></div>`, Object.assign(acts, { close: closeSheet }));
@@ -1251,6 +1253,87 @@ function hideLanding() {
 $('ldPlay').addEventListener('click', hideLanding);
 $('ldPlay2').addEventListener('click', hideLanding);
 
+/* ================= move progress to another device =================
+   The progress travels inside a link (#overzetten=…): levels, stars, points, daily challenges, settings and
+   the device code for the family overview, so the new device continues as the same player. */
+const TRANSFER = '#overzetten=';
+const b64url = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+const unb64url = str => { const s = atob(str.replace(/-/g, '+').replace(/_/g, '/')); const b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); return b; };
+async function pipe(bytes, stream) { return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer()); }
+async function packProgress() {
+  const settings = Object.assign({}, S);
+  const data = { v: 1, P, S: settings, done: dailyDone, key: playTracking?.deviceId || (load('patience.sharing.v1', {}) || {}).key || null };
+  let bytes = new TextEncoder().encode(JSON.stringify(data)), tag = 'j';
+  if (window.CompressionStream) { try { bytes = await pipe(bytes, new CompressionStream('deflate-raw')); tag = 'z'; } catch (e) {} }
+  return tag + b64url(bytes);
+}
+async function unpackProgress(code) {
+  let bytes = unb64url(code.slice(1));
+  if (code[0] === 'z') bytes = await pipe(bytes, new DecompressionStream('deflate-raw'));
+  const d = JSON.parse(new TextDecoder().decode(bytes));
+  if (!d || d.v !== 1 || !d.P || !(d.P.level >= 1) || typeof d.P.best !== 'object') throw new Error('bad');
+  return d;
+}
+function loadScript(src) {
+  return new Promise((ok, fail) => { const el = document.createElement('script'); el.src = src; el.onload = ok; el.onerror = fail; document.head.appendChild(el); });
+}
+async function transferSheet() {
+  sheet(`<h2>Voortgang overzetten</h2><p>Even geduld…</p>`, {});
+  const link = location.origin + location.pathname + TRANSFER + await packProgress();
+  let qr = '';
+  try {
+    if (!window.qrcode) await loadScript('qrcode.js?v=1');
+    const q = window.qrcode(0, 'L'); q.addData(link); q.make();
+    qr = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+  } catch (e) { qr = ''; }
+  sheet(`<h2>Voortgang overzetten</h2>
+    <p>Scan de code met de camera van je andere telefoon, of stuur jezelf de link. Daar ga je verder op <b>level ${P.level}</b> met ${fmtNum(P.total)} punten.</p>
+    ${qr ? `<div class="qr">${qr}</div>` : '<p>De link is te lang voor een QR-code; kopieer of deel de link.</p>'}
+    <div class="btns">
+      ${navigator.share ? '<button class="btn primary big" data-a="share">Link delen</button>' : ''}
+      <button class="btn${navigator.share ? '' : ' primary big'}" data-a="copy">Link kopiëren</button>
+      <button class="btn ghost" data-a="close">Klaar</button>
+    </div>`, {
+    share: () => navigator.share({ title: 'Sudoku voortgang', url: link }).catch(() => {}),
+    copy: () => (navigator.clipboard ? navigator.clipboard.writeText(link) : Promise.reject()).then(() => toast('Link gekopieerd.'), () => toast('Kopiëren lukte niet.')),
+    close: closeSheet,
+  });
+}
+async function importFromLink() {
+  if (!String(location.hash || '').startsWith(TRANSFER)) return;
+  const code = location.hash.slice(TRANSFER.length);
+  history.replaceState(null, '', location.pathname + location.search);
+  let d;
+  try { d = await unpackProgress(code); } catch (e) { toast('Deze overzet-link werkt niet. Maak een nieuwe.', 4000); return; }
+  const lower = d.P.level < P.level;
+  sheet(`<h2>Voortgang overzetten?</h2>
+    <p>Hier verder gaan op <b>level ${d.P.level}</b> met ${fmtNum(d.P.total)} punten.${lower ? ` Let op: dit apparaat staat nu verder, op level ${P.level}.` : ''}</p>
+    <div class="btns"><button class="btn primary big" data-a="ok">Overzetten</button><button class="btn ghost" data-a="no">Niet doen</button></div>`, {
+    ok: () => {
+      store(LS.prog, d.P); store(LS.done, d.done || {});
+      if (d.S && typeof d.S === 'object') store(LS.set, Object.assign({}, DEF, d.S));
+      if (d.key && /^[a-f0-9]{32}$/.test(d.key)) store('patience.sharing.v1', { key: d.key });
+      store(LS.main, null); store(RANK_KEY, null);
+      location.reload();
+    },
+    no: closeSheet,
+  });
+}
+
+/* ---------- installing on Android ---------- */
+let installPrompt = null;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; });
+function androidSheet() {
+  sheet(`<h2>Op Android installeren</h2>
+    <p>${installPrompt ? 'Tik op Installeren. Daarna staat Sudoku als app op je telefoon.' : 'Open deze pagina in Chrome, tik op het menu ⋮ rechtsboven en kies <b>App installeren</b> (of <b>Toevoegen aan startscherm</b>).'}</p>
+    <p>Wil je verder met je voortgang van een ander apparaat? Kies daar bij Instellingen <b>Voortgang overzetten</b>.</p>
+    <div class="btns">${installPrompt ? '<button class="btn primary big" data-a="install">Installeren</button>' : ''}<button class="btn ghost" data-a="close">Sluiten</button></div>`, {
+    install: () => { const p = installPrompt; installPrompt = null; closeSheet(); p.prompt(); },
+    close: closeSheet,
+  });
+}
+$('ldAndroid').addEventListener('click', androidSheet);
+
 /* ================= boot ================= */
 function boot() {
   applySettings();
@@ -1258,11 +1341,12 @@ function boot() {
   if (m && !m.G.won && !m.G.lost) { G = prepare(m.G); H = m.H || []; sel = G.sel != null ? G.sel : -1; notesMode = !!G.notesMode; }
   show('Home');
   if (!isStandalone()) showLanding(false);
+  importFromLink();
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 }
 // testing hook
-window.__sudoku = { get deviceId() { return playTracking?.deviceId; }, get G() { return G; }, set G(v) { G = v; }, get sel() { return sel; }, select, input, hint, undo, erase, toggleNotes, newGame, playLevel, show, render, P, S, win, levelSheet, settingsSheet, dailyDone, finishReceipt, closeReceipt, renderReceiptRank, levelEntry, baseFor, LEVEL_COUNT, dailyEntry };
+window.__sudoku = { packProgress, get deviceId() { return playTracking?.deviceId; }, get G() { return G; }, set G(v) { G = v; }, get sel() { return sel; }, select, input, hint, undo, erase, toggleNotes, newGame, playLevel, show, render, P, S, win, levelSheet, settingsSheet, dailyDone, finishReceipt, closeReceipt, renderReceiptRank, levelEntry, baseFor, LEVEL_COUNT, dailyEntry };
 boot();
 })();
