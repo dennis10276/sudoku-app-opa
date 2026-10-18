@@ -974,8 +974,8 @@ async function refreshRanking(force) {
 // Rivals keep the ranking lively: they stay close to opa's own level, some a little ahead, some a little
 // behind, with a small daily wobble, and never go backwards. They are worked out on this device only.
 const RIVALS = [
-  { name: 'Kees', f: 1.3, add: 2 }, { name: 'Henk', f: 1.12, add: 1 },
-  { name: 'Truus', f: 0.97, add: 0 }, { name: 'Ria', f: 0.85, add: -1 },
+  { name: 'Joop', f: 1.3, add: 2 }, { name: 'Marianne', f: 1.12, add: 1 },
+  { name: 'Ton', f: 0.97, add: 0 }, { name: 'Gerda', f: 0.85, add: -1 },
 ];
 const RIVALS_KEY = 'sudoku.rivals';
 function rivalLevels(myLevel) {
@@ -1010,7 +1010,7 @@ function shownName(x) {
   if (normName(x.name) === 'opa') return 'Aad';
   return x.name === 'Jij' ? 'Jij' : x.name + ' (jij)';
 }
-// a compact line on the points receipt: "🏆 2. Dennis 61 · 3. Henk 16 · 4. Aad 15"
+// a compact line on the points receipt: "🏆 2. Dennis 61 · 3. Marianne 16 · 4. Aad 15"
 function renderReceiptRank() {
   const box = $('rcRank'); if (!box) return;
   const r = rankRows();
