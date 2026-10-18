@@ -5,7 +5,7 @@ Klassieke Sudoku in het Nederlands, zonder reclame. Werkt als web-app: open de p
 **Speel:** https://dennis10276.github.io/sudoku-app-opa/
 
 ## Functies
-- **Levels** in plaats van moeilijkheidsgraden: begin bij level 1, elk level is een heel klein beetje moeilijker. Opa ziet alleen zijn levelnummer, nooit hoe moeilijk een puzzel is. Alle 4976 puzzels staan in één rij van makkelijk naar extreem, met een heel geleidelijke overgang; daarna gaat het eindeloos door.
+- **Levels** in plaats van moeilijkheidsgraden: begin bij level 1, elk level is een heel klein beetje moeilijker. Opa ziet alleen zijn levelnummer, nooit hoe moeilijk een puzzel is. De 3626 puzzels staan in één rij van gemiddeld naar extreem (de 1350 makkelijkste zijn eruit gelaten), met een heel geleidelijke overgang; daarna gaat het eindeloos door.
 - **Punten**, zonder tijdsdruk. Bij elk goed getal zweeft een "+x" omhoog met de reden eronder:
   - goed getal: 10 punten (elke 100 levels 1 meer)
   - reeks: elk volgend goed getal zonder fout 2 extra, tot 20 extra; een fout begint de reeks opnieuw
@@ -30,15 +30,15 @@ Klassieke Sudoku in het Nederlands, zonder reclame. Werkt als web-app: open de p
 - `generated.js`, `generated2.js` en `extra.txt`: eigen puzzels (`tools/generate.js`, `tools/generate-extra.js`)
 - `collection.txt`: 626 vrij te gebruiken puzzels (Public Domain / CC0) uit de "Free to Use Sudoku Puzzle Collection" (SudokuEngine)
 
-Elke puzzel heeft precies één oplossing en wordt ingedeeld op de technieken die nodig zijn (`core.js`): alleen "enige plek", paren, drietallen/X-wing/XY-wing, korte ketens, langere ketens. Binnen een groep gaat het van veel naar weinig gegeven cijfers. De groepen volgen elkaar op met lange overgangen: over honderden levels groeit het aandeel van de volgende soort heel geleidelijk van 0% naar 100%.
+Elke puzzel heeft precies één oplossing en wordt ingedeeld op de technieken die nodig zijn (`core.js`): alleen "enige plek", paren, drietallen/X-wing/XY-wing, korte ketens, langere ketens. Binnen een groep gaat het van veel naar weinig gegeven cijfers. De 1350 makkelijkste puzzels zijn weggelaten (`SKIP` in `tools/build-levels.js`): level 1 begint waar je gemiddeld zo'n 10 vakjes tegelijk kunt invullen, rond level 450 zijn dat er 8. De groepen volgen elkaar op met lange overgangen: over honderden levels groeit het aandeel van de volgende soort heel geleidelijk van 0% naar 100%.
 
 | Levels | Wat |
 | --- | --- |
-| 1–2000 | alleen "enige plek", van ±45 naar ±31 gegeven cijfers |
-| ±2000–2900 | steeds vaker een puzzel waarbij paren helpen |
-| ±2900–4100 | geleidelijk drietallen, X-wing, XY-wing, korte ketens |
-| ±4100–4976 | de moeilijkste |
-| 4977+ | de laatste 1000 opnieuw, steeds anders omgezet |
+| 1–±740 | alleen "enige plek", van ±34 naar ±31 gegeven cijfers; ±10 → ±7 vakjes tegelijk in te vullen |
+| ±740–1550 | steeds vaker een puzzel waarbij paren helpen |
+| ±1550–2750 | geleidelijk drietallen, X-wing, XY-wing, korte ketens |
+| ±2750–3626 | de moeilijkste |
+| 3627+ | de laatste 1000 opnieuw, steeds anders omgezet |
 
 De dagelijkse uitdaging is een puzzel van rond je eigen level, anders omgezet zodat hij er nieuw uitziet (voor iedereen op dezelfde dag dezelfde opzet).
 

@@ -10,7 +10,7 @@ test('opening a Sudoku and selecting a cell do not count a puzzle; first number 
   a.game.input(a.game.G.sol[a.game.sel]); a.advance(5); a.nodes.get('gPause').listeners.click(); await a.flush();
   const r = [...a.records.values()][0];
   assert.equal(r.detail.reason, 'pause'); assert.equal(r.detail.actions.input, 1); assert.equal(r.detail.progress, 1); assert.equal(r.detail.initial, 0);
-  assert.equal(r.games, 1); assert.equal(r.seconds, 5); assert.equal(r.level, 'easy'); assert.equal(r.active, false);
+  assert.equal(r.games, 1); assert.equal(r.seconds, 5); assert.equal(r.level, 'medium'); assert.equal(r.active, false);
 });
 
 test('notes count one puzzle even before the normal game counter starts', async () => {
@@ -66,7 +66,7 @@ test('restarting counts a new attempt and switching levels closes the previous s
   a.game.hint(); a.game.newGame(hardLevel); a.game.hint(); a.game.show('Home'); await a.flush();
   const records = [...a.records.values()];
   assert.equal(records.length, 3); assert.equal(records.reduce((n, r) => n + r.games, 0), 3);
-  assert.deepEqual(records.map(r => r.level), ['easy', 'easy', 'hard']);
+  assert.deepEqual(records.map(r => r.level), ['medium', 'medium', 'hard']);
   assert.ok(records.every(r => r.active === false));
   assert.deepEqual(records.map(r => r.detail.reason), ['restart', 'new_game', 'menu']);
   assert.equal(new Set(records.map(r => r.detail.round)).size, 3);
@@ -76,5 +76,5 @@ test('the family overview learns which level is played and how far opa has come'
   const a = app(); a.game.newGame(1); a.game.select(blank(a)); a.game.input(a.game.G.sol[a.game.sel]);
   a.nodes.get('gPause').listeners.click(); await a.flush();
   const r = [...a.records.values()][0];
-  assert.equal(r.detail.mode, 'L1|1'); assert.equal(r.detail.build, 'sudoku-12');
+  assert.equal(r.detail.mode, 'L1|1'); assert.equal(r.detail.build, 'sudoku-13');
 });

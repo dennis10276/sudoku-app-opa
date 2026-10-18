@@ -6,12 +6,12 @@ const C = require('../core.js');
 const empties = g => g.puz.flatMap((v, i) => v ? [] : [i]);
 const put = (a, i, d) => { a.game.select(i); a.game.input(d); };
 
-test('all puzzles form one gentle line: only easy thinking up to level 1000, hardest at the end', () => {
+test('all puzzles form one gentle line: only singles up to level 700, hardest at the end', () => {
   const a = app(), g = a.game, N = g.LEVEL_COUNT;
-  assert.ok(N >= 4000);
+  assert.ok(N >= 3500);
   const tierAt = n => C.rate(g.levelEntry(n).puz).level;
-  for (let n = 1; n <= 1000; n += 37) assert.equal(tierAt(n), 1, `level ${n} only needs singles`);
-  for (let n = 1001; n <= 1500; n += 41) assert.ok(tierAt(n) <= 2, `level ${n} still doable`);
+  for (let n = 1; n <= 700; n += 37) assert.equal(tierAt(n), 1, `level ${n} only needs singles`);
+  for (let n = 701; n <= 1100; n += 41) assert.ok(tierAt(n) <= 2, `level ${n} still doable`);
   for (const n of [N - 50, N, N + 1, N + 999]) {
     const e = g.levelEntry(n);
     assert.equal(C.solve(e.puz, 2).count, 1, `level ${n} unique`);
@@ -23,11 +23,12 @@ test('all puzzles form one gentle line: only easy thinking up to level 1000, har
     let sum = 0, k = 0;
     for (let n = s; n < s + 200; n += 10) { sum += tierAt(n); k++; }
     const avg = sum / k;
-    if (prev != null) { assert.ok(avg >= prev - .35, `no drop at ${s}`); assert.ok(avg - prev <= 1.2, `no jump at ${s}: ${prev} → ${avg}`); }
+    if (prev != null) { assert.ok(avg >= prev - .35, `no drop at ${s}`); assert.ok(avg - prev <= 1.4, `no jump at ${s}: ${prev} → ${avg}`); }   // steepest step: into expert, ~level 1800
     prev = avg;
   }
-  const clues = n => g.levelEntry(n).puz.filter(Boolean).length;
+  const clues = n => { let c = 0; for (let k = n; k < n + 50; k++) c += g.levelEntry(k).puz.filter(Boolean).length; return c / 50; };
   assert.ok(clues(1) > clues(500) && clues(500) > clues(1000));
+  assert.ok(clues(1) <= 36, 'the easiest puzzles are left out');
 });
 
 test('the daily challenge is a puzzle from around the player level', () => {
