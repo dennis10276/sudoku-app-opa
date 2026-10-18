@@ -1,7 +1,9 @@
 package nl.dennis.sudoku;
 
+import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
@@ -9,6 +11,8 @@ import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
 import android.webkit.JavascriptInterface;
+import android.webkit.PermissionRequest;
+import android.webkit.WebChromeClient;
 import android.webkit.ValueCallback;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
@@ -24,7 +28,9 @@ import android.webkit.WebViewClient;
 public class MainActivity extends Activity {
     static final String HOME = "https://dennis10276.github.io/sudoku-app-opa/";
     static final String PREFIX = "/sudoku-app-opa";
+    static final int CAMERA_REQ = 7;
     private WebView web;
+    private PermissionRequest pendingCamera;   // the page asked for the camera; waiting for Android's permission
 
     @Override
     protected void onCreate(Bundle state) {
@@ -57,8 +63,44 @@ public class MainActivity extends Activity {
             }
         });
 
+        // "Code scannen" in the game uses the camera to read the transfer QR code
+        web.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public void onPermissionRequest(final PermissionRequest req) {
+                runOnUiThread(new Runnable() {
+                    @Override public void run() { handleCamera(req); }
+                });
+            }
+
+            @Override
+            public void onPermissionRequestCanceled(PermissionRequest req) {
+                if (req == pendingCamera) pendingCamera = null;
+            }
+        });
+
         if (state != null) web.restoreState(state);
         if (state == null || web.getUrl() == null) web.loadUrl(urlFor(getIntent()));
+    }
+
+    void handleCamera(PermissionRequest req) {
+        boolean video = false;
+        for (String r : req.getResources()) if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(r)) video = true;
+        Uri o = req.getOrigin();
+        if (!video || o == null || !"https".equals(o.getScheme()) || !"dennis10276.github.io".equals(o.getHost())) { req.deny(); return; }
+        String[] grant = { PermissionRequest.RESOURCE_VIDEO_CAPTURE };
+        if (checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) { req.grant(grant); return; }
+        if (pendingCamera != null) pendingCamera.deny();
+        pendingCamera = req;
+        requestPermissions(new String[] { Manifest.permission.CAMERA }, CAMERA_REQ);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int code, String[] perms, int[] results) {
+        if (code != CAMERA_REQ || pendingCamera == null) return;
+        PermissionRequest req = pendingCamera; pendingCamera = null;
+        if (results.length > 0 && results[0] == PackageManager.PERMISSION_GRANTED)
+            req.grant(new String[] { PermissionRequest.RESOURCE_VIDEO_CAPTURE });
+        else req.deny();
     }
 
     @Override

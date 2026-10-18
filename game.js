@@ -290,7 +290,7 @@ function trackingDetails() {
   if (!G.playId) G.playId = playTracking?.newRound();
   // mode tells the family overview which level is being played and how far opa has unlocked: "L37|38"
   // (a daily challenge is "D|38", an old puzzle "O|38").
-  return { round: G.playId, build: 'sudoku-11', level: G.level, daily: !!G.daily,
+  return { round: G.playId, build: 'sudoku-12', level: G.level, daily: !!G.daily,
     mode: `${G.daily ? 'D' : G.n ? 'L' + G.n : 'O'}|${P.level}`,
     progress: G.val.reduce((n, v, i) => n + (!G.puz[i] && v === G.sol[i] ? 1 : 0), 0),
     total: G.puz.filter(v => !v).length, score: G.score, gameSeconds: G.time,
@@ -708,6 +708,7 @@ function confettiLoop() {
 let sheetOpen = false, sheetLocked = false;
 function sheet(html, actions = {}, opt = {}) {
   endTracking('menu');
+  stopScan();
   const m = $('modal'), sh = m.firstElementChild;
   sh.innerHTML = '<div class="grab"></div>' + html;
   sh.onclick = e => {
@@ -718,7 +719,9 @@ function sheet(html, actions = {}, opt = {}) {
   m.hidden = false; sheetOpen = true;
   sh.scrollTop = 0;
 }
-function closeSheet() { $('modal').hidden = true; sheetOpen = false; sheetLocked = false; }
+function closeSheet() { stopScan(); $('modal').hidden = true; sheetOpen = false; sheetLocked = false; }
+let scanStop = null;                       // stops the camera of "Code scannen" while it runs
+function stopScan() { if (scanStop) { const f = scanStop; scanStop = null; f(); } }
 $('modal').addEventListener('click', e => { if (e.target.id === 'modal' && !sheetLocked) closeSheet(); });
 
 // in-game menu: start this puzzle again or pick another level
@@ -752,7 +755,7 @@ function settingsSheet() {
   acts.rules = () => rulesSheet(true);
   acts.points = () => pointsSheet(true);
   acts.install = () => { closeSheet(); showLanding(true); };
-  acts.transfer = () => transferSheet();
+  acts.transfer = () => transferMenu();
   acts.restartLvl = () => { closeSheet(); restartGame(); };
   acts.reset = () => confirmSheet('Alles opnieuw beginnen?', 'Je gaat terug naar level 1. Alle punten, sterren en dagelijkse uitdagingen worden gewist. Dit kan niet ongedaan worden gemaakt.', 'Alles wissen', () => {
     Object.assign(P, { level: 1, best: {}, total: 0, fails: {}, wins: 0, bestWins: 0, played: 0 }); saveProgress();
@@ -784,8 +787,8 @@ function settingsSheet() {
       ${inGame ? '<button class="set-row link" data-a="restartLvl">Deze puzzel opnieuw beginnen</button>' : ''}
       <button class="set-row link" data-a="points">Zo verdien je punten</button>
       <button class="set-row link" data-a="rules">Spelregels</button>
-      <button class="set-row link" data-a="install">Op het beginscherm zetten</button>
-      <button class="set-row link" data-a="transfer">Voortgang overzetten naar een ander apparaat</button>
+      ${IN_APP ? '' : '<button class="set-row link" data-a="install">Op het beginscherm zetten</button>'}
+      <button class="set-row link" data-a="transfer">Voortgang overzetten</button>
       <button class="set-row link" data-a="reset" style="color:var(--err)">Alles opnieuw beginnen</button>
     </div>
     <div class="btns"><button class="btn primary big" data-a="close">Klaar</button></div>`, Object.assign(acts, { close: closeSheet }));
@@ -1292,6 +1295,77 @@ async function unpackProgress(code) {
 function loadScript(src) {
   return new Promise((ok, fail) => { const el = document.createElement('script'); el.src = src; el.onload = ok; el.onerror = fail; document.head.appendChild(el); });
 }
+function transferMenu() {
+  const canScan = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  sheet(`<h2>Voortgang overzetten</h2>
+    <p>Speel verder op een ander apparaat met je level, punten en sterren.</p>
+    <div class="btns">
+      <button class="btn primary big" data-a="scan">Hierheen halen<small>${canScan ? 'code van het andere apparaat scannen' : 'link van het andere apparaat plakken'}</small></button>
+      <button class="btn big" data-a="show">Naar een ander apparaat<small>code op dit apparaat tonen</small></button>
+      <button class="btn ghost" data-a="close">Annuleren</button>
+    </div>`, { scan: scanSheet, show: transferSheet, close: closeSheet });
+}
+// the code from a transfer link, a bare code, or null
+function transferCode(text) {
+  const t = String(text || '').trim();
+  const i = t.indexOf(TRANSFER);
+  const code = i >= 0 ? t.slice(i + TRANSFER.length) : t;
+  return /^[zj][A-Za-z0-9_-]{8,}$/.test(code) ? code : null;
+}
+async function scanSheet() {
+  const canScan = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  sheet(`<h2>Code scannen</h2>
+    <p>Kies op het andere apparaat bij Instellingen → <b>Voortgang overzetten</b> → <b>Naar een ander apparaat</b>, en richt de camera op de QR-code.</p>
+    ${canScan ? '<div class="scan"><video playsinline muted autoplay></video><i></i></div><p class="scan-msg" id="scanMsg">Camera starten…</p>' : ''}
+    <div class="paste"><input id="pasteLink" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="…of plak hier de link"><button class="btn" data-a="paste">Gebruiken</button></div>
+    <div class="btns"><button class="btn ghost" data-a="close">Annuleren</button></div>`, {
+    paste: () => {
+      const code = transferCode($('pasteLink').value);
+      if (code) importCode(code); else toast('Dat is geen overzet-link.');
+    },
+    close: closeSheet,
+  });
+  if (!canScan) return;
+  const video = document.querySelector('.scan video'), msg = $('scanMsg');
+  let stream = null, alive = true, raf = 0;
+  scanStop = () => { alive = false; cancelAnimationFrame(raf); if (stream) stream.getTracks().forEach(t => t.stop()); video.srcObject = null; };
+  const myStop = scanStop;
+  try {
+    const [media] = await Promise.all([
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false }),
+      window.jsQR ? null : loadScript('jsqr.js?v=1'),
+    ]);
+    stream = media;
+    if (!alive || scanStop !== myStop) { stream.getTracks().forEach(t => t.stop()); return; }
+    video.srcObject = stream; await video.play().catch(() => {});
+    msg.textContent = 'Richt de camera op de QR-code.';
+  } catch (e) {
+    if (scanStop === myStop) scanStop = null;
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    if (!alive) return;
+    msg.textContent = e && e.name === 'NotAllowedError' ? 'Geen toegang tot de camera. Sta de camera toe, of plak de link hieronder.' : 'De camera werkt hier niet. Plak de link hieronder.';
+    document.querySelector('.scan').hidden = true;
+    return;
+  }
+  const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d', { willReadFrequently: true });
+  let last = 0;
+  const tick = t => {
+    if (!alive) return;
+    raf = requestAnimationFrame(tick);
+    if (t - last < 120 || video.readyState < 2 || !video.videoWidth) return;
+    last = t;
+    const k = Math.min(1, 720 / Math.max(video.videoWidth, video.videoHeight));
+    canvas.width = Math.round(video.videoWidth * k); canvas.height = Math.round(video.videoHeight * k);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const found = window.jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+    if (!found || !found.data) return;
+    const code = transferCode(found.data);
+    if (!code) { msg.textContent = 'Dit is niet de goede code. Gebruik de code bij Voortgang overzetten.'; return; }
+    sound('tap'); stopScan(); importCode(code);
+  };
+  raf = requestAnimationFrame(tick);
+}
 async function transferSheet() {
   sheet(`<h2>Voortgang overzetten</h2><p>Even geduld…</p>`, {});
   const link = location.origin + location.pathname + TRANSFER + await packProgress();
@@ -1302,7 +1376,7 @@ async function transferSheet() {
     qr = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
   } catch (e) { qr = ''; }
   sheet(`<h2>Voortgang overzetten</h2>
-    <p>Scan de code met de camera van je andere telefoon, of stuur jezelf de link. Daar ga je verder op <b>level ${P.level}</b> met ${fmtNum(P.total)} punten.</p>
+    <p>Kies op je andere telefoon bij Instellingen → Voortgang overzetten → <b>Hierheen halen</b> en scan deze code, of stuur jezelf de link. Daar ga je verder op <b>level ${P.level}</b> met ${fmtNum(P.total)} punten.</p>
     ${qr ? `<div class="qr">${qr}</div>` : '<p>De link is te lang voor een QR-code; kopieer of deel de link.</p>'}
     <div class="btns">
       ${navigator.share ? '<button class="btn primary big" data-a="share">Link delen</button>' : ''}
@@ -1318,12 +1392,15 @@ async function importFromLink() {
   if (!String(location.hash || '').startsWith(TRANSFER)) return;
   const code = location.hash.slice(TRANSFER.length);
   history.replaceState(null, '', location.pathname + location.search);
+  importCode(code, true);
+}
+async function importCode(code, fromLink) {
   let d;
   try { d = await unpackProgress(code); } catch (e) { toast('Deze overzet-link werkt niet. Maak een nieuwe.', 4000); return; }
   const lower = d.P.level < P.level;
   sheet(`<h2>Voortgang overzetten?</h2>
     <p>Hier verder gaan op <b>level ${d.P.level}</b> met ${fmtNum(d.P.total)} punten.${lower ? ` Let op: dit apparaat staat nu verder, op level ${P.level}.` : ''}</p>
-    <div class="btns">${IS_ANDROID && !IN_APP ? `<a class="btn primary big" href="intent://overzetten/${code}#Intent;scheme=sudokuopa;package=nl.dennis.sudoku;end">In de Android-app openen</a><button class="btn" data-a="ok">Hier in de browser overzetten</button>` : '<button class="btn primary big" data-a="ok">Overzetten</button>'}<button class="btn ghost" data-a="no">Niet doen</button></div>`, {
+    <div class="btns">${fromLink && IS_ANDROID && !IN_APP ? `<a class="btn primary big" href="intent://overzetten/${code}#Intent;scheme=sudokuopa;package=nl.dennis.sudoku;end">In de Android-app openen</a><button class="btn" data-a="ok">Hier in de browser overzetten</button>` : '<button class="btn primary big" data-a="ok">Overzetten</button>'}<button class="btn ghost" data-a="no">Niet doen</button></div>`, {
     ok: () => {
       store(LS.prog, d.P); store(LS.done, d.done || {});
       if (d.S && typeof d.S === 'object') store(LS.set, Object.assign({}, DEF, d.S));

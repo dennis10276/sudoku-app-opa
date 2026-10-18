@@ -144,16 +144,19 @@ Automatische browserruns (`navigator.webdriver`) sturen geen speelgegevens of sp
 
 ## Overzetten en Android
 
-Instellingen → **Voortgang overzetten naar een ander apparaat** maakt een link en QR-code
-(`#overzetten=…`, gecomprimeerd met deflate-raw). Op het andere apparaat vraagt het spel om
-bevestiging en neemt dan level, punten, sterren, statistieken, dagelijkse uitdagingen,
+Instellingen → **Voortgang overzetten** heeft twee keuzes:
+
+- **Naar een ander apparaat** toont een link en QR-code (`#overzetten=…`, gecomprimeerd met deflate-raw).
+- **Hierheen halen** scant die QR-code met de camera (jsQR, alleen geladen als je scant), of je plakt de link.
+
+Na bevestiging neemt het spel level, punten, sterren, statistieken, dagelijkse uitdagingen,
 instellingen en de meetcode over, zodat het dashboard het als hetzelfde apparaat ziet.
-Een half gespeelde puzzel gaat niet mee. Op een Android-telefoon biedt de pagina ook
-**In de Android-app openen** aan (`intent://overzetten/<code>`, schema `sudokuopa`).
+Een half gespeelde puzzel gaat niet mee. Opent iemand de link in Chrome op Android, dan biedt
+de pagina ook **In de Android-app openen** aan (`intent://overzetten/<code>`, schema `sudokuopa`).
 
 ### Android-app (APK)
 
-`sudoku.apk` (±140 kB, pakket `nl.dennis.sudoku`) is een schermvullende WebView van de live
+`sudoku.apk` (±150 kB, pakket `nl.dennis.sudoku`, versie 1.1 / versionCode 2) is een schermvullende WebView van de live
 site, dus updates van het spel komen vanzelf in de app. Bron in `android/`, bouwen zonder Gradle:
 
 ```
@@ -166,10 +169,12 @@ APK moet met dezelfde sleutel worden ondertekend en een hoger `versionCode` hebb
 
 De app geeft zichzelf aan met `SudokuApp/1` in de user-agent: dan is er geen startpagina, kleurt
 de statusbalk mee met licht/donker (`SudokuApp.setBars`) en sluit de terugknop eerst een venster
-(`window.__appBack`). Het knopje **Android** onderaan de startpagina is klein en vaag en wordt niet
+(`window.__appBack`). De app vraagt cameratoestemming pas bij **Code scannen** en geeft de camera
+alleen aan de eigen site. Het knopje **Android** onderaan de startpagina is klein en vaag en wordt niet
 getoond op iPhone/iPad of in de app zelf. De service worker laat `.apk` met rust.
 
-QR-codes: `qrcode.js` is qrcode-generator 1.4.4 van Kazuhiko Arase (MIT-licentie).
+QR-codes: `qrcode.js` is qrcode-generator 1.4.4 van Kazuhiko Arase (MIT-licentie); `jsqr.js` is
+jsQR 1.4.0 van Cosmo Wolfe (Apache-licentie 2.0), verkleind.
 
 ## Ranglijst
 
