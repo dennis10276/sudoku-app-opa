@@ -5,7 +5,7 @@ Klassieke Sudoku in het Nederlands, zonder reclame. Werkt als web-app: open de p
 **Speel:** https://dennis10276.github.io/sudoku-app-opa/
 
 ## Functies
-- **Levels** in plaats van moeilijkheidsgraden: begin bij level 1, elk level is een heel klein beetje moeilijker. Opa ziet alleen zijn levelnummer, nooit hoe moeilijk een puzzel is. De 3626 puzzels staan in één rij van heel makkelijk naar extreem, met een heel geleidelijke overgang; daarna gaat het eindeloos door.
+- **Levels** in plaats van moeilijkheidsgraden: begin bij level 1, elk level is een heel klein beetje moeilijker. Opa ziet alleen zijn levelnummer, nooit hoe moeilijk een puzzel is. De 3869 puzzels staan in één rij van makkelijk naar extreem, met een heel geleidelijke overgang; daarna gaat het eindeloos door.
 - **Punten**, zonder tijdsdruk. Bij elk goed getal zweeft een "+x" omhoog met de reden eronder:
   - goed getal: 10 punten (elke 100 levels 1 meer)
   - reeks: elk volgend goed getal zonder fout 2 extra, tot 20 extra; een fout begint de reeks opnieuw
@@ -30,17 +30,15 @@ Klassieke Sudoku in het Nederlands, zonder reclame. Werkt als web-app: open de p
 - `generated.js`, `generated2.js` en `extra.txt`: eigen puzzels (`tools/generate.js`, `tools/generate-extra.js`)
 - `collection.txt`: 626 vrij te gebruiken puzzels (Public Domain / CC0) uit de "Free to Use Sudoku Puzzle Collection" (SudokuEngine)
 
-Elke puzzel heeft precies één oplossing en wordt ingedeeld op de technieken die nodig zijn (`core.js`): alleen "enige plek", paren, drietallen/X-wing/XY-wing, korte ketens, langere ketens. Binnen een groep gaat het van veel naar weinig gegeven cijfers. Levels 1–150 zijn extra makkelijk gemaakt door bij puzzels uit de verzameling cijfers uit de oplossing in te vullen (er blijft precies één oplossing): level 1 heeft 25 lege vakjes, bijna allemaal meteen in te vullen, en dat loopt op naar ±35. Daarna volgen de "enige plek"-puzzels uit de verzameling in hun geleidelijke volgorde, gelijkmatig uitgedund zodat level 1000 eindigt bij ±6 vakjes tegelijk. Tot en met level 1000 is alleen "enige plek" nodig; de eerste puzzel met een paar is level 1001 (`EASY`, `UPTO`, `FIRST` in `tools/build-levels.js`). De groepen volgen elkaar op met lange overgangen: over honderden levels groeit het aandeel van de volgende soort heel geleidelijk van 0% naar 100%.
+Elke puzzel heeft precies één oplossing en wordt ingedeeld op de technieken die nodig zijn (`core.js`): alleen "enige plek", paren, drietallen/X-wing/XY-wing, korte ketens, langere ketens. Binnen een groep gaat het van veel naar weinig gegeven cijfers. Levels 1–1000 zijn alleen "enige plek"-puzzels, gerangschikt op hoeveel vakjes je meteen aan het begin kunt invullen: level 1 begint bij 25 (de 93 nog makkelijkere puzzels zijn weggelaten), level 1000 eindigt bij ±9. De puzzels in dat bereik zijn gelijkmatig over de 1000 levels verdeeld. De eerste puzzel met een paar is level 1001 (`START_FILL`, `END_FILL`, `FIRST` in `tools/build-levels.js`). De groepen volgen elkaar op met lange overgangen: over honderden levels groeit het aandeel van de volgende soort heel geleidelijk van 0% naar 100%.
 
 | Levels | Wat |
 | --- | --- |
-| 1–150 | extra makkelijk: 25 → 35 lege vakjes |
-| 151–1000 | alleen "enige plek", van ±46 naar ±30 gegeven cijfers |
-| 1001–±1330 | steeds vaker een puzzel waarbij paren helpen (level 1001 is de eerste) |
-| ±1330–±1550 | paren |
-| ±1550–2750 | geleidelijk drietallen, X-wing, XY-wing, korte ketens |
-| ±2750–3626 | de moeilijkste |
-| 3627+ | de laatste 1000 opnieuw, steeds anders omgezet |
+| 1–1000 | alleen "enige plek"; aan het begin 25 → ±9 vakjes meteen in te vullen, ±39 → ±31 gegeven cijfers |
+| 1001–±1800 | steeds vaker een puzzel waarbij paren helpen (level 1001 is de eerste) |
+| ±1800–3000 | geleidelijk drietallen, X-wing, XY-wing, korte ketens |
+| ±3000–3869 | de moeilijkste |
+| 3870+ | de laatste 1000 opnieuw, steeds anders omgezet |
 
 De dagelijkse uitdaging is een puzzel van rond je eigen level, anders omgezet zodat hij er nieuw uitziet (voor iedereen op dezelfde dag dezelfde opzet).
 

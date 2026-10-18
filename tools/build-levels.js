@@ -37,6 +37,17 @@ function singlesProfile(grid) {
   }
   return { avg: sumAvail / steps, tight, hiddenOnly };
 }
+// How many squares can be filled straight away, before anything is filled in ("fillable at the start").
+function startFillable(grid) {
+  const st = C.makeState(grid), can = new Set();
+  for (let i = 0; i < 81; i++) if (!st.v[i] && C.POP[st.c[i]] === 1) can.add(i);
+  for (let u = 0; u < 27; u++) for (let d = 1; d <= 9; d++) {
+    const b = C.BIT(d); let pos = -1, n = 0, done = false;
+    for (const j of C.UNITS[u]) { if (st.v[j] === d) { done = true; break; } if (!st.v[j] && (st.c[j] & b)) { n++; pos = j; } }
+    if (!done && n === 1) can.add(pos);
+  }
+  return can.size;
+}
 const items = [];
 for (const p of uniq) {
   const g = p.split('').map(Number);
@@ -45,47 +56,31 @@ for (const p of uniq) {
   const clues = g.filter(Boolean).length;
   let tier = r.level === 1 ? 1 : r.level === 2 ? 2 : r.level <= 4 ? 3 : (r.chains >= 3 || r.chainMax > 2 || r.level === 6) ? 5 : 4;
   let score, opts = null;
-  if (tier === 1) { const sp = singlesProfile(g); opts = sp.avg; score = (45 - clues) * 1.0 + sp.tight * 0.35 + sp.hiddenOnly * 0.25 - sp.avg * 0.6; }
+  let start = null;
+  if (tier === 1) { const sp = singlesProfile(g); opts = sp.avg; start = startFillable(g); score = (45 - clues) * 1.0 + sp.tight * 0.35 + sp.hiddenOnly * 0.25 - sp.avg * 0.6; }
   else score = (45 - clues) + (r.chains || 0) * 2 + (r.level === 4 ? 8 : 0);   // inside the expert tier: X-wing/triples before XY-wings
-  items.push({ p, tier, clues, score, opts, band: null });
+  items.push({ p, tier, clues, score, opts, start, band: null });
 }
 const by = t => items.filter(x => x.tier === t).sort((a, b) => a.score - b.score);
 const t1 = by(1), t2 = by(2), t3 = by(3), t4 = by(4), t5 = by(5);
 console.log('pool', { singles: t1.length, pairs: t2.length, expert: t3.length, master: t4.length, extreme: t5.length });
 
 // ---------- levels 1–1000 ----------
-// Levels 1–1000 need only "one place / one number".
-// Levels 1–EASY: made from collection puzzles by filling in numbers from the solution (more givens, still one
-// solution). Level 1 has 25 empty squares, nearly all fillable straight away; a few more each level, up to where
-// the collection's easiest puzzles start (~35 empty).
-// Levels EASY+1–1000: the collection's singles puzzles in their gentle order (mostly fewer givens step by step),
-// spread evenly so that level 1000 ends where you can fill about 6 squares at any moment.
-const EASY = 150, EMPTY_FROM = 25, FIRST = 1000, UPTO = 2350;   // UPTO: how far into the singles list level 1000 reaches
-const pick = new Set();
-for (let k = EASY + 1; k <= FIRST; k++) pick.add(Math.round((k - EASY - 1) * (UPTO - 1) / (FIRST - EASY - 1)));
-const fromList = [...pick].sort((a, b) => a - b).map(i => t1[i]);
-if (fromList.length !== FIRST - EASY) throw new Error('pick');
-const donors = t1.slice(0, UPTO).filter((x, i) => !pick.has(i));
-const harder = t1.slice(UPTO);                                       // still singles, harder than level 1000
-const EMPTY_TO = 81 - fromList[0].clues;
-let seed = 12345;
-const rnd = () => ((seed = (seed * 1103515245 + 12345) >>> 0) / 4294967296);
-const made = [];
-for (let k = 1; k <= EASY; k++) {
-  const d = donors.shift(); if (!d) throw new Error('not enough donor puzzles');
-  const g = d.p.split('').map(Number), sol = C.solve(g, 2).solution;
-  const empty = []; for (let i = 0; i < 81; i++) if (!g[i]) empty.push(i);
-  for (let i = empty.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [empty[i], empty[j]] = [empty[j], empty[i]]; }
-  const want = Math.min(empty.length, Math.round(EMPTY_FROM + (EMPTY_TO - EMPTY_FROM) * (k - 1) / (EASY - 1)));
-  while (empty.length > want) { const i = empty.pop(); g[i] = sol[i]; }
-  made.push({ p: g.join(''), tier: 1, clues: 81 - want, score: 0, band: null, made: true });
-}
-const chosen = made.concat(fromList);
-console.log('levels 1-' + FIRST + ':', EASY, 'made easier,', FIRST - EASY, 'from the collection;', harder.length, 'harder singles left');
-for (const k of [1, 50, 100, 150, 151, 200, 300, 500, 750, 1000]) {
-  const g = chosen[k - 1].p.split('').map(Number);
-  console.log('  level', k, 'empty', 81 - chosen[k - 1].clues, 'fillable at once', singlesProfile(g).avg.toFixed(1));
-}
+// Levels 1–1000 need only "one place / one number" and are ordered by how many squares can be filled straight
+// away at the start: level 1 starts at START_FILL (easier puzzles are left out), level 1000 ends at about END_FILL.
+// Within the same number, fewer givens and fewer choices along the way come later. The puzzles in that range are
+// spread evenly over the 1000 levels; the rest of the singles puzzles (harder) lead into the pairs.
+const START_FILL = 25, END_FILL = 9, FIRST = 1000;
+const ranged = t1.filter(x => x.start <= START_FILL && x.start >= END_FILL)
+  .sort((a, b) => b.start - a.start || a.score - b.score);
+if (ranged.length < FIRST) throw new Error('not enough singles puzzles between ' + START_FILL + ' and ' + END_FILL);
+const pickIdx = new Set();
+for (let k = 0; k < FIRST; k++) pickIdx.add(Math.round(k * (ranged.length - 1) / (FIRST - 1)));
+const chosen = ranged.filter((x, i) => pickIdx.has(i));
+const harder = t1.filter(x => x.start < END_FILL).sort((a, b) => a.score - b.score);   // lead into the pairs
+console.log('levels 1-' + FIRST + ':', ranged.length, 'singles puzzles between', START_FILL, 'and', END_FILL, 'fillable at the start;',
+  t1.filter(x => x.start > START_FILL).length, 'easier left out;', harder.length, 'harder ones before the pairs');
+for (const k of [1, 100, 250, 500, 750, 1000]) console.log('  level', k, 'fillable at start', chosen[k - 1].start, 'empty', 81 - chosen[k - 1].clues);
 
 // ---------- order ----------
 // One gentle line from easiest to hardest. Tiers follow each other, but every change of tier is a long

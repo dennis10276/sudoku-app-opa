@@ -29,8 +29,17 @@ test('all puzzles form one gentle line: only singles up to level 1000, pairs fro
   }
   const clues = n => { let c = 0; for (let k = n; k < n + 50; k++) c += g.levelEntry(k).puz.filter(Boolean).length; return c / 50; };
   assert.ok(clues(1) > clues(500) && clues(500) > clues(1000));
-  assert.equal(81 - g.levelEntry(1).puz.filter(Boolean).length, 25, 'level 1 has 25 empty squares');
-  for (const n of [1, 75, 150]) assert.equal(C.solve(g.levelEntry(n).puz, 2).count, 1, `made-easier level ${n} has one solution`);
+  // ordered by how many squares can be filled straight away: 25 at level 1, falling to about 9 at level 1000
+  const startFill = n => { const st = C.makeState(g.levelEntry(n).puz), can = new Set();
+    for (let i = 0; i < 81; i++) if (!st.v[i] && C.POP[st.c[i]] === 1) can.add(i);
+    for (let u = 0; u < 27; u++) for (let d = 1; d <= 9; d++) { const b = C.BIT(d); let pos = -1, k = 0, done = false;
+      for (const j of C.UNITS[u]) { if (st.v[j] === d) { done = true; break; } if (!st.v[j] && (st.c[j] & b)) { k++; pos = j; } }
+      if (!done && k === 1) can.add(pos); }
+    return can.size; };
+  assert.equal(startFill(1), 25);
+  let last = 99;
+  for (let n = 1; n <= 1000; n++) { const f = startFill(n); assert.ok(f <= last, `level ${n} not easier than level ${n - 1}`); last = f; }
+  assert.ok(startFill(1000) >= 9);
 });
 
 test('the daily challenge is a puzzle from around the player level', () => {
