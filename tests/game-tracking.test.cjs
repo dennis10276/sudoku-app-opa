@@ -76,5 +76,5 @@ test('the family overview learns which level is played and how far opa has come'
   const a = app(); a.game.newGame(1); a.game.select(blank(a)); a.game.input(a.game.G.sol[a.game.sel]);
   a.nodes.get('gPause').listeners.click(); await a.flush();
   const r = [...a.records.values()][0];
-  assert.equal(r.detail.mode, 'L1|1'); assert.equal(r.detail.build, 'sudoku-10');
+  assert.equal(r.detail.mode, 'L1|1'); assert.equal(r.detail.build, 'sudoku-11');
 });

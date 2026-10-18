@@ -148,9 +148,31 @@ Instellingen → **Voortgang overzetten naar een ander apparaat** maakt een link
 (`#overzetten=…`, gecomprimeerd met deflate-raw). Op het andere apparaat vraagt het spel om
 bevestiging en neemt dan level, punten, sterren, statistieken, dagelijkse uitdagingen,
 instellingen en de meetcode over, zodat het dashboard het als hetzelfde apparaat ziet.
-Een half gespeelde puzzel gaat niet mee.
+Een half gespeelde puzzel gaat niet mee. Op een Android-telefoon biedt de pagina ook
+**In de Android-app openen** aan (`intent://overzetten/<code>`, schema `sudokuopa`).
 
-Onderaan het startscherm staat een klein, vaag knopje **Android**. Daar kun je de app
-installeren via Chrome (`beforeinstallprompt`), of anders via menu ⋮ → App installeren.
+### Android-app (APK)
+
+`sudoku.apk` (±140 kB, pakket `nl.dennis.sudoku`) is een schermvullende WebView van de live
+site, dus updates van het spel komen vanzelf in de app. Bron in `android/`, bouwen zonder Gradle:
+
+```
+SUDOKU_KEYSTORE=/pad/sudoku.jks SUDOKU_KEYPASS=… android/build.sh
+```
+
+Nodig: Android SDK met `platforms;android-34` en `build-tools;35.0.0`, en de ondertekensleutel
+(niet in de repo; bewaard in de map `android-sleutel` naast de lokale kopie). Een update van de
+APK moet met dezelfde sleutel worden ondertekend en een hoger `versionCode` hebben.
+
+De app geeft zichzelf aan met `SudokuApp/1` in de user-agent: dan is er geen startpagina, kleurt
+de statusbalk mee met licht/donker (`SudokuApp.setBars`) en sluit de terugknop eerst een venster
+(`window.__appBack`). Het knopje **Android** onderaan de startpagina is klein en vaag en wordt niet
+getoond op iPhone/iPad of in de app zelf. De service worker laat `.apk` met rust.
 
 QR-codes: `qrcode.js` is qrcode-generator 1.4.4 van Kazuhiko Arase (MIT-licentie).
+
+## Ranglijst
+
+Opa begint op minstens level 10: zodra de app ziet dat het apparaat van "Opa" is, gaat een lager
+level naar 10. De vier medespelers (Joop, Marianne, Frits, Lies) bewegen alleen rond opa's level,
+ook op andere apparaten; zolang opa's level onbekend is, staan ze niet in de lijst.

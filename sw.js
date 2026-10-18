@@ -1,6 +1,6 @@
 /* Offline support. Network first (so updates arrive right away), cache as fallback. */
-const CACHE = 'sudoku-v16';
-const FILES = ['./', 'index.html', 'style.css?v=16', 'game.js?v=16', 'tracking-config.js?v=16', 'tracking.js?v=16', 'core.js?v=16', 'puzzles.js?v=16', 'manifest.webmanifest',
+const CACHE = 'sudoku-v17';
+const FILES = ['./', 'index.html', 'style.css?v=17', 'game.js?v=17', 'tracking-config.js?v=17', 'tracking.js?v=17', 'core.js?v=17', 'puzzles.js?v=17', 'manifest.webmanifest',
   'qrcode.js?v=1', 'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/favicon-32.png'];
 
 self.addEventListener('install', e => {
@@ -13,7 +13,8 @@ self.addEventListener('activate', e => {
 });
 self.addEventListener('fetch', e => {
   const req = e.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
+  const url = new URL(req.url);
+  if (req.method !== 'GET' || url.origin !== location.origin || url.pathname.endsWith('.apk')) return;   // the Android app downloads straight
   e.respondWith(
     fetch(req).then(res => {
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }

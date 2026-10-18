@@ -290,7 +290,7 @@ function trackingDetails() {
   if (!G.playId) G.playId = playTracking?.newRound();
   // mode tells the family overview which level is being played and how far opa has unlocked: "L37|38"
   // (a daily challenge is "D|38", an old puzzle "O|38").
-  return { round: G.playId, build: 'sudoku-10', level: G.level, daily: !!G.daily,
+  return { round: G.playId, build: 'sudoku-11', level: G.level, daily: !!G.daily,
     mode: `${G.daily ? 'D' : G.n ? 'L' + G.n : 'O'}|${P.level}`,
     progress: G.val.reduce((n, v, i) => n + (!G.puz[i] && v === G.sol[i] ? 1 : 0), 0),
     total: G.puz.filter(v => !v).length, score: G.score, gameSeconds: G.time,
@@ -940,6 +940,7 @@ $('homeDaily').addEventListener('click', () => { sound('tap'); calSel = todayKey
    Everyone's Sudoku app reports "L<played>|<unlocked>" to the family database. Devices with the same
    name are one person (on an iPhone each home-screen app has its own code). Names come from the dashboard. */
 const RANK_KEY = 'sudoku.ranking';
+const OPA_START = 10;
 const rank = { rows: load(RANK_KEY, null), at: 0, busy: false };
 const rankBase = () => String((window.SUDOKU_TRACKING || {}).databaseUrl || '').replace(/\/$/, '');
 const normName = s => typeof s === 'string' ? s.trim().replace(/\s+/g, ' ').toLowerCase() : '';
@@ -970,10 +971,16 @@ async function refreshRanking(force) {
       return { name, level: p.level, me: !!me && p.keys.includes(me) };
     });
     store(RANK_KEY, rank.rows);
+    // opa starts at level 10: the first levels are too easy for him
+    const mine = rank.rows.find(r => r.me);
+    if (mine && normName(mine.name) === 'opa' && P.level < OPA_START) {
+      P.level = OPA_START; saveProgress();
+      if (typeof renderHome === 'function') renderHome();
+    }
   } catch (e) { /* offline: keep showing the last known ranking */ }
   finally { rank.busy = false; renderRanking(); }
 }
-// Rivals keep the ranking lively: they stay close to opa's own level, some a little ahead, some a little
+// Rivals keep opa's ranking lively: they stay close to opa's level, some a little ahead, some a little
 // behind, with a small daily wobble, and never go backwards. They are worked out on this device only.
 const RIVALS = [
   { name: 'Joop', f: 1.3, add: 2 }, { name: 'Marianne', f: 1.12, add: 1 },
@@ -999,8 +1006,12 @@ function rankRows() {
   let mine = rows.find(r => r.me);
   if (!mine) { mine = { name: 'Jij', level: 0, me: true }; rows.push(mine); }
   mine.level = Math.max(mine.level, P.level);
-  const taken = new Set(rows.map(r => normName(r.name)));
-  for (const r of rivalLevels(mine.level)) if (!taken.has(normName(r.name))) rows.push(r);
+  // the rivals are there for opa: they always sit around opa's level, also on someone else's device
+  const opa = rows.find(r => normName(r.name) === 'opa');
+  if (opa && opa.level > 0) {
+    const taken = new Set(rows.map(r => normName(r.name)));
+    for (const r of rivalLevels(opa.level)) if (!taken.has(normName(r.name))) rows.push(r);
+  }
   if (!rows.some(r => !r.me)) return null;
   rows.sort((a, b) => b.level - a.level || (a.me ? -1 : b.me ? 1 : 0));
   const crown = rows.filter(r => r.level > 0).length > 1 && rows.filter(r => r.level === rows[0].level).length === 1;
@@ -1228,12 +1239,16 @@ function applySettings() {
   document.body.classList.toggle('nomist', !S.autoCheck);
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute('content', dark ? '#15191f' : '#ffffff');
+  try { if (window.SudokuApp) window.SudokuApp.setBars(dark ? '#15191f' : '#ffffff'); } catch (e) {}
   if (G && screen === 'Game') render();
 }
 if (darkMQ && darkMQ.addEventListener) darkMQ.addEventListener('change', applySettings);
 
 /* ================= landing page ================= */
-const isStandalone = () => window.navigator.standalone === true || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+const IN_APP = /SudokuApp\//.test(navigator.userAgent || '');          // the Android app (WebView)
+const IS_IOS = /iPhone|iPad|iPod/.test(navigator.userAgent || '') || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const IS_ANDROID = /Android/.test(navigator.userAgent || '');
+const isStandalone = () => IN_APP || window.navigator.standalone === true || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
 function showLanding(scrollToInstall) {
   endTracking('menu');
   closeSheet();
@@ -1308,7 +1323,7 @@ async function importFromLink() {
   const lower = d.P.level < P.level;
   sheet(`<h2>Voortgang overzetten?</h2>
     <p>Hier verder gaan op <b>level ${d.P.level}</b> met ${fmtNum(d.P.total)} punten.${lower ? ` Let op: dit apparaat staat nu verder, op level ${P.level}.` : ''}</p>
-    <div class="btns"><button class="btn primary big" data-a="ok">Overzetten</button><button class="btn ghost" data-a="no">Niet doen</button></div>`, {
+    <div class="btns">${IS_ANDROID && !IN_APP ? `<a class="btn primary big" href="intent://overzetten/${code}#Intent;scheme=sudokuopa;package=nl.dennis.sudoku;end">In de Android-app openen</a><button class="btn" data-a="ok">Hier in de browser overzetten</button>` : '<button class="btn primary big" data-a="ok">Overzetten</button>'}<button class="btn ghost" data-a="no">Niet doen</button></div>`, {
     ok: () => {
       store(LS.prog, d.P); store(LS.done, d.done || {});
       if (d.S && typeof d.S === 'object') store(LS.set, Object.assign({}, DEF, d.S));
@@ -1320,19 +1335,38 @@ async function importFromLink() {
   });
 }
 
-/* ---------- installing on Android ---------- */
-let installPrompt = null;
-addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; });
-function androidSheet() {
-  sheet(`<h2>Op Android installeren</h2>
-    <p>${installPrompt ? 'Tik op Installeren. Daarna staat Sudoku als app op je telefoon.' : 'Open deze pagina in Chrome, tik op het menu ⋮ rechtsboven en kies <b>App installeren</b> (of <b>Toevoegen aan startscherm</b>).'}</p>
-    <p>Wil je verder met je voortgang van een ander apparaat? Kies daar bij Instellingen <b>Voortgang overzetten</b>.</p>
-    <div class="btns">${installPrompt ? '<button class="btn primary big" data-a="install">Installeren</button>' : ''}<button class="btn ghost" data-a="close">Sluiten</button></div>`, {
-    install: () => { const p = installPrompt; installPrompt = null; closeSheet(); p.prompt(); },
+/* ---------- the Android app ----------
+   A small APK (android/) that shows this game full screen. The link to it is deliberately tiny and is not
+   shown on iPhones or inside the app itself. */
+const APK = 'sudoku.apk';
+async function androidSheet() {
+  const url = new URL(APK, location.href).href;
+  let qr = '';
+  if (!IS_ANDROID) {
+    try {
+      if (!window.qrcode) await loadScript('qrcode.js?v=1');
+      const q = window.qrcode(0, 'M'); q.addData(url); q.make();
+      qr = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+    } catch (e) { qr = ''; }
+  }
+  sheet(`<h2>Sudoku-app voor Android</h2>
+    <p>${IS_ANDROID ? 'Download de app (150 kB) en open het bestand.' : 'Scan de code met je Android-telefoon, download de app (150 kB) en open het bestand.'}
+    Vraagt de telefoon om toestemming om apps te installeren, sta dat dan één keer toe.</p>
+    ${qr ? `<div class="qr">${qr}</div>` : ''}
+    <p>Je voortgang neem je mee via Instellingen → <b>Voortgang overzetten</b>.</p>
+    <div class="btns">${IS_ANDROID ? `<a class="btn primary big" href="${APK}" download="Sudoku.apk">App downloaden</a>` : ''}<button class="btn ghost" data-a="close">Sluiten</button></div>`, {
     close: closeSheet,
   });
 }
+$('ldAndroid').hidden = IS_IOS || IN_APP;
 $('ldAndroid').addEventListener('click', androidSheet);
+// the app's back button: close a sheet, then go back to the start screen, then leave the app
+window.__appBack = () => {
+  if (sheetOpen && !sheetLocked) { closeSheet(); return true; }
+  if (!$('receipt').hidden) return true;                // the receipt has its own button
+  if (screen !== 'Home') { show('Home'); return true; }
+  return false;
+};
 
 /* ================= boot ================= */
 function boot() {

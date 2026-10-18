@@ -127,6 +127,7 @@ body.tabs .tabbar { display: flex; }
 .btn small { font-size: 15px; font-weight: 500; opacity: .85; margin-top: 2px; }
 .btn:active { transform: scale(.985); filter: brightness(.96); }
 .btn.ghost { border-color: transparent; background: none; }
+a.btn { text-decoration: none; box-sizing: border-box; }
 .btn.danger { border-color: var(--err); color: var(--err); }
 
 /* ---------- home ---------- */

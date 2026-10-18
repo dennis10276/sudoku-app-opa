@@ -101,9 +101,11 @@ test('players without a reported level yet still appear, and the ranking shows u
 });
 
 test('rivals stay close to opa, never go back and are shown like everyone else', async () => {
-  const a = app(() => null);
+  let a;
+  a = app(url => url.includes('/players.json') ? { [a.game.deviceId]: { name: 'Opa' } } : null);
   const g = a.game;
   g.P.level = 40; g.show('Home');
+  await new Promise(r => setTimeout(r, 20)); g.show('Home');
   const levels = () => Object.fromEntries(a.nodes.get('rankList').children.map(li => [li.children[1].textContent, Number(li.children[2].textContent.replace('level ', ''))]));
   const first = levels();
   for (const name of ['Joop', 'Marianne', 'Frits', 'Lies']) assert.ok(Math.abs(first[name] - 40) <= 16, `${name} near opa`);
@@ -114,7 +116,7 @@ test('rivals stay close to opa, never go back and are shown like everyone else',
   assert.equal(a.nodes.get('homeRank').hidden, false);
 });
 
-test('on opa\'s phone he is called Aad, and the family is always on the receipt line', async () => {
+test('on opa\'s phone he is called Aad, starts at level 10, and the family is always on the receipt line', async () => {
   const C = 'c'.repeat(32);
   let a;
   const remote = url => url.includes('/players.json') ? { [a.game.deviceId]: { name: 'OPa' }, [C]: { name: 'Dennis' } }
@@ -127,6 +129,32 @@ test('on opa\'s phone he is called Aad, and the family is always on the receipt 
   a.game.renderReceiptRank();
   const chips = a.nodes.get('rcRank').children.slice(1).map(c => c.textContent);
   assert.ok(chips.some(c => /Dennis 90$/.test(c)), chips.join(' | '));
-  assert.ok(chips.some(c => /Aad 5$/.test(c)), chips.join(' | '));
+  assert.ok(chips.some(c => /Aad 10$/.test(c)), chips.join(' | '));
+  assert.equal(a.game.P.level, 10);
+  assert.equal(a.nodes.get('homeLevel').textContent, 10);
   assert.ok(chips.length <= 4);
+});
+
+test('on someone else\'s device the rivals sit around opa\'s level, not around mine', async () => {
+  const A = 'a'.repeat(32);
+  let a;
+  const remote = url => url.includes('/players.json') ? { [a.game.deviceId]: { name: 'Dennis' }, [A]: { name: 'Opa' } }
+    : url.includes(A) ? { x: { app: 'sudoku', detail: { mode: 'L30|30' } } } : null;
+  a = app(remote);
+  a.game.P.level = 300; a.game.show('Home');
+  await new Promise(r => setTimeout(r, 20)); a.game.show('Home');
+  const lv = Object.fromEntries(a.nodes.get('rankList').children.map(li => [li.children[1].textContent, li.children[2].textContent]));
+  for (const name of ['Joop', 'Marianne', 'Frits', 'Lies']) {
+    const n = Number(lv[name].replace('level ', ''));
+    assert.ok(Math.abs(n - 30) <= 12, `${name} ${n} near opa`);
+  }
+});
+
+test('without a known level for opa there are no rivals', async () => {
+  const a = app(() => null);
+  a.game.P.level = 50; a.game.show('Home');
+  await new Promise(r => setTimeout(r, 20));
+  const list = a.nodes.get('rankList');
+  const names = list ? list.children.map(li => li.children[1].textContent) : [];
+  assert.ok(!names.some(n => /Joop|Marianne|Frits|Lies/.test(n)), names.join(','));
 });

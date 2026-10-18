@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="nl.dennis.sudoku"
+    android:versionCode="1"
+    android:versionName="1.0">
+  <uses-sdk android:minSdkVersion="24" android:targetSdkVersion="34" />
+  <uses-permission android:name="android.permission.INTERNET" />
+  <application
+      android:label="Sudoku"
+      android:icon="@mipmap/ic_launcher"
+      android:theme="@style/App"
+      android:allowBackup="true"
+      android:hardwareAccelerated="true">
+    <activity
+        android:name=".MainActivity"
+        android:exported="true"
+        android:launchMode="singleTask"
+        android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode|density">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+      <!-- "Openen in de app" from the transfer page: sudokuopa://overzetten/<code> -->
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="sudokuopa" />
+      </intent-filter>
+      <!-- links to the game itself (Android asks which app to use, or set it under "Standaard openen") -->
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+        <data android:scheme="https" android:host="dennis10276.github.io" android:pathPrefix="/sudoku-app-opa" />
+      </intent-filter>
+    </activity>
+  </application>
+</manifest>
