@@ -84,9 +84,9 @@ let paused = false;
 let screen = 'Home';
 let returnTo = 'Home';
 
-// New level list (easiest left out, pairs from 1001): everyone starts again at level 1. Points, stars per level and
+// New level list (epoch 3: level 1 has 25 empty squares, pairs from 1001): everyone starts again at level 1. Points, stars per level and
 // the unfinished level puzzle go too; daily challenges and settings stay. Runs once per device.
-const LEVELS_EPOCH = 2, EPOCH_KEY = 'sudoku.levelsEpoch';
+const LEVELS_EPOCH = 3, EPOCH_KEY = 'sudoku.levelsEpoch';
 if ((load(EPOCH_KEY, 1) || 1) < LEVELS_EPOCH) {
   store(LS.prog, null); store(LS.main, null); store('sudoku.rivals', {}); store('sudoku.ranking', null);
   store(EPOCH_KEY, LEVELS_EPOCH);
@@ -297,7 +297,7 @@ function trackingDetails() {
   if (!G.playId) G.playId = playTracking?.newRound();
   // mode tells the family overview which level is being played and how far opa has unlocked: "L37|38"
   // (a daily challenge is "D|38", an old puzzle "O|38").
-  return { round: G.playId, build: 'sudoku-14', level: G.level, daily: !!G.daily,
+  return { round: G.playId, build: 'sudoku-15', level: G.level, daily: !!G.daily,
     mode: `${G.daily ? 'D' : G.n ? 'L' + G.n : 'O'}|${P.level}`,
     progress: G.val.reduce((n, v, i) => n + (!G.puz[i] && v === G.sol[i] ? 1 : 0), 0),
     total: G.puz.filter(v => !v).length, score: G.score, gameSeconds: G.time,
@@ -953,8 +953,8 @@ const RANK_KEY = 'sudoku.ranking';
 const rank = { rows: load(RANK_KEY, null), at: 0, busy: false };
 const rankBase = () => String((window.SUDOKU_TRACKING || {}).databaseUrl || '').replace(/\/$/, '');
 const normName = s => typeof s === 'string' ? s.trim().replace(/\s+/g, ' ').toLowerCase() : '';
-// levels reported before the new level list (build sudoku-13 and older) mean other puzzles: ignored
-const FIRST_NEW_BUILD = 14;
+// levels reported before the current level list (build sudoku-14 and older) mean other puzzles: ignored
+const FIRST_NEW_BUILD = 15;
 const buildNo = b => { const m = typeof b === 'string' && /^sudoku-(\d+)$/.exec(b); return m ? Number(m[1]) : 0; };
 const levelFromMode = m => { const x = typeof m === 'string' && /^(?:L\d{1,5}|D|O)\|(\d{1,5})$/.exec(m); return x ? Number(x[1]) : 0; };
 async function refreshRanking(force) {

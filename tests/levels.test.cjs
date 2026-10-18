@@ -29,7 +29,8 @@ test('all puzzles form one gentle line: only singles up to level 1000, pairs fro
   }
   const clues = n => { let c = 0; for (let k = n; k < n + 50; k++) c += g.levelEntry(k).puz.filter(Boolean).length; return c / 50; };
   assert.ok(clues(1) > clues(500) && clues(500) > clues(1000));
-  assert.ok(clues(1) <= 36, 'the easiest puzzles are left out');
+  assert.equal(81 - g.levelEntry(1).puz.filter(Boolean).length, 25, 'level 1 has 25 empty squares');
+  for (const n of [1, 75, 150]) assert.equal(C.solve(g.levelEntry(n).puz, 2).count, 1, `made-easier level ${n} has one solution`);
 });
 
 test('the daily challenge is a puzzle from around the player level', () => {
@@ -79,7 +80,7 @@ test('hints give no points; after losing a level twice it may be skipped', () =>
 
 test('the ranking shows the family by level, one person per name, test devices left out', async () => {
   const A = 'a'.repeat(32), B = 'b'.repeat(32), D = 'd'.repeat(32);
-  const sud = mode => ({ x: { app: 'sudoku', detail: { mode, build: 'sudoku-14' } } });
+  const sud = mode => ({ x: { app: 'sudoku', detail: { mode, build: 'sudoku-15' } } });
   const remote = url => url.includes('/players.json')
     ? { [A]: { name: 'Dennis' }, [B]: { name: 'dennis ' }, [D]: { name: 'DennisTEST' } }
     : url.includes(A) ? sud('L20|21') : url.includes(B) ? sud('D|25') : url.includes(D) ? sud('L900|900') : null;
@@ -122,7 +123,7 @@ test('on opa\'s phone he is called Aad, and the family is always on the receipt 
   const C = 'c'.repeat(32);
   let a;
   const remote = url => url.includes('/players.json') ? { [a.game.deviceId]: { name: 'OPa' }, [C]: { name: 'Dennis' } }
-    : url.includes(C) ? { x: { app: 'sudoku', detail: { mode: 'L90|90', build: 'sudoku-14' } } } : null;
+    : url.includes(C) ? { x: { app: 'sudoku', detail: { mode: 'L90|90', build: 'sudoku-15' } } } : null;
   a = app(remote);
   a.game.P.level = 5; a.game.show('Home');
   await new Promise(r => setTimeout(r, 20));
@@ -140,7 +141,7 @@ test('on someone else\'s device the rivals sit around opa\'s level, not around m
   const A = 'a'.repeat(32);
   let a;
   const remote = url => url.includes('/players.json') ? { [a.game.deviceId]: { name: 'Dennis' }, [A]: { name: 'Opa' } }
-    : url.includes(A) ? { x: { app: 'sudoku', detail: { mode: 'L30|30', build: 'sudoku-14' } } } : null;
+    : url.includes(A) ? { x: { app: 'sudoku', detail: { mode: 'L30|30', build: 'sudoku-15' } } } : null;
   a = app(remote);
   a.game.P.level = 300; a.game.show('Home');
   await new Promise(r => setTimeout(r, 20)); a.game.show('Home');
@@ -183,7 +184,7 @@ test('the transfer code is short and brings level, stars, dailies, settings and 
 test('levels reported before the new level list are ignored in the ranking', async () => {
   const A = 'a'.repeat(32), B = 'b'.repeat(32);
   const remote = url => url.includes('/players.json') ? { [A]: { name: 'Dennis' }, [B]: { name: 'Opa' } }
-    : url.includes(A) ? { x: { app: 'sudoku', detail: { mode: 'L13|13', build: 'sudoku-13' } }, y: { app: 'sudoku', detail: { mode: 'L2|3', build: 'sudoku-14' } } }
+    : url.includes(A) ? { x: { app: 'sudoku', detail: { mode: 'L13|13', build: 'sudoku-14' } }, y: { app: 'sudoku', detail: { mode: 'L2|3', build: 'sudoku-15' } } }
     : url.includes(B) ? { x: { app: 'sudoku', detail: { mode: 'L40|40', build: 'sudoku-12' } } } : null;
   const a = app(remote);
   a.game.show('Home');
@@ -195,7 +196,7 @@ test('levels reported before the new level list are ignored in the ranking', asy
 
 test('a code from before the new level list is refused', async () => {
   const a = app(() => null);
-  await assert.rejects(a.game.unpackProgress('2X5X0X0X0X0XX' + 'X1000'), /old/);
+  await assert.rejects(a.game.unpackProgress('2X5X0X0X0X0XX' + 'X1000X2'), /old/);
   await assert.rejects(a.game.unpackProgress('jeyJ2IjoxfQ'), /old/);
 });
 
@@ -211,6 +212,6 @@ test('the new level list sends everyone back to level 1 once; daily challenges a
   assert.equal(a.game.dailyDone['2026-10-10'].stars, 3);
   assert.equal(a.game.S.theme, 'donker');
   // once: progress made after the reset stays
-  const later = app(() => null, { 'sudoku.levelsEpoch': '2', 'sudoku.progress': JSON.stringify({ level: 4, best: {}, total: 900 }) });
+  const later = app(() => null, { 'sudoku.levelsEpoch': '3', 'sudoku.progress': JSON.stringify({ level: 4, best: {}, total: 900 }) });
   assert.equal(later.game.P.level, 4);
 });

@@ -5,7 +5,7 @@ Klassieke Sudoku in het Nederlands, zonder reclame. Werkt als web-app: open de p
 **Speel:** https://dennis10276.github.io/sudoku-app-opa/
 
 ## Functies
-- **Levels** in plaats van moeilijkheidsgraden: begin bij level 1, elk level is een heel klein beetje moeilijker. Opa ziet alleen zijn levelnummer, nooit hoe moeilijk een puzzel is. De 3626 puzzels staan in één rij van gemiddeld naar extreem (de 1350 makkelijkste zijn eruit gelaten), met een heel geleidelijke overgang; daarna gaat het eindeloos door.
+- **Levels** in plaats van moeilijkheidsgraden: begin bij level 1, elk level is een heel klein beetje moeilijker. Opa ziet alleen zijn levelnummer, nooit hoe moeilijk een puzzel is. De 3626 puzzels staan in één rij van heel makkelijk naar extreem, met een heel geleidelijke overgang; daarna gaat het eindeloos door.
 - **Punten**, zonder tijdsdruk. Bij elk goed getal zweeft een "+x" omhoog met de reden eronder:
   - goed getal: 10 punten (elke 100 levels 1 meer)
   - reeks: elk volgend goed getal zonder fout 2 extra, tot 20 extra; een fout begint de reeks opnieuw
@@ -30,11 +30,12 @@ Klassieke Sudoku in het Nederlands, zonder reclame. Werkt als web-app: open de p
 - `generated.js`, `generated2.js` en `extra.txt`: eigen puzzels (`tools/generate.js`, `tools/generate-extra.js`)
 - `collection.txt`: 626 vrij te gebruiken puzzels (Public Domain / CC0) uit de "Free to Use Sudoku Puzzle Collection" (SudokuEngine)
 
-Elke puzzel heeft precies één oplossing en wordt ingedeeld op de technieken die nodig zijn (`core.js`): alleen "enige plek", paren, drietallen/X-wing/XY-wing, korte ketens, langere ketens. Binnen een groep gaat het van veel naar weinig gegeven cijfers. De 1350 makkelijkste puzzels zijn weggelaten (`SKIP` in `tools/build-levels.js`): level 1 begint waar je gemiddeld zo'n 10 vakjes tegelijk kunt invullen, rond level 450 zijn dat er 8. Tot en met level 1000 is alleen "enige plek" nodig; de eerste puzzel met een paar is level 1001 (`FIRST_PAIR`). De groepen volgen elkaar op met lange overgangen: over honderden levels groeit het aandeel van de volgende soort heel geleidelijk van 0% naar 100%.
+Elke puzzel heeft precies één oplossing en wordt ingedeeld op de technieken die nodig zijn (`core.js`): alleen "enige plek", paren, drietallen/X-wing/XY-wing, korte ketens, langere ketens. Binnen een groep gaat het van veel naar weinig gegeven cijfers. Levels 1–150 zijn extra makkelijk gemaakt door bij puzzels uit de verzameling cijfers uit de oplossing in te vullen (er blijft precies één oplossing): level 1 heeft 25 lege vakjes, bijna allemaal meteen in te vullen, en dat loopt op naar ±35. Daarna volgen de "enige plek"-puzzels uit de verzameling in hun geleidelijke volgorde, gelijkmatig uitgedund zodat level 1000 eindigt bij ±6 vakjes tegelijk. Tot en met level 1000 is alleen "enige plek" nodig; de eerste puzzel met een paar is level 1001 (`EASY`, `UPTO`, `FIRST` in `tools/build-levels.js`). De groepen volgen elkaar op met lange overgangen: over honderden levels groeit het aandeel van de volgende soort heel geleidelijk van 0% naar 100%.
 
 | Levels | Wat |
 | --- | --- |
-| 1–1000 | alleen "enige plek", van ±34 naar ±30 gegeven cijfers; ±10 → ±6 vakjes tegelijk in te vullen |
+| 1–150 | extra makkelijk: 25 → 35 lege vakjes |
+| 151–1000 | alleen "enige plek", van ±46 naar ±30 gegeven cijfers |
 | 1001–±1330 | steeds vaker een puzzel waarbij paren helpen (level 1001 is de eerste) |
 | ±1330–±1550 | paren |
 | ±1550–2750 | geleidelijk drietallen, X-wing, XY-wing, korte ketens |
@@ -182,9 +183,9 @@ jsQR 1.4.0 van Cosmo Wolfe (Apache-licentie 2.0), verkleind.
 
 ## Ranglijst
 
-Iedereen begint opnieuw bij level 1 sinds de nieuwe levelreeks (build `sudoku-14`, `LEVELS_EPOCH = 2`): bij de
+Iedereen begint opnieuw bij level 1 sinds de nieuwe levelreeks (build `sudoku-15`, `LEVELS_EPOCH = 3`): bij de
 eerste start gaan level, punten, sterren per level en een onafgemaakte levelpuzzel terug naar nul; dagelijkse
-uitdagingen en instellingen blijven. De ranglijst en het dashboard tellen alleen levels die met build 14 of nieuwer
+uitdagingen en instellingen blijven. De ranglijst en het dashboard tellen alleen levels die met build 15 of nieuwer
 gemeld zijn, en overzetcodes van vóór de nieuwe levels worden geweigerd. De vier medespelers (Joop, Marianne,
 Frits, Lies) bewegen alleen rond opa's level, ook op andere apparaten; zolang opa's level onbekend is, staan ze niet
 in de lijst.
