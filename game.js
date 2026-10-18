@@ -1358,13 +1358,15 @@ function transferCode(text) {
   const code = i >= 0 ? t.slice(i + TRANSFER.length) : t;
   return /^[zj23][A-Za-z0-9_-]{8,}$/.test(code) ? code : null;
 }
+const SCAN_VERSION = 3;
 async function scanSheet() {
   const canScan = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
   sheet(`<h2>Code scannen</h2>
     <p>Kies op het andere apparaat bij Instellingen → <b>Voortgang overzetten</b> → <b>Naar een ander apparaat</b>. Houd de telefoon zo dat de QR-code het kader vult.</p>
     ${canScan ? '<div class="scan"><video playsinline muted autoplay></video><i></i></div><p class="scan-msg" id="scanMsg">Camera starten…</p>' : ''}
     <div class="paste"><input id="pasteLink" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="…of plak hier de link"><button class="btn" data-a="paste">Gebruiken</button></div>
-    <div class="btns"><button class="btn ghost" data-a="close">Annuleren</button></div>`, {
+    <div class="btns"><button class="btn ghost" data-a="close">Annuleren</button></div>
+    <p class="scan-ver">scanner ${SCAN_VERSION}</p>`, {
     paste: () => {
       const code = transferCode($('pasteLink').value);
       if (code) importCode(code); else toast('Dat is geen overzet-link.');
@@ -1376,13 +1378,14 @@ async function scanSheet() {
   let stream = null, alive = true, raf = 0;
   scanStop = () => { alive = false; cancelAnimationFrame(raf); if (stream) stream.getTracks().forEach(t => t.stop()); video.srcObject = null; };
   const myStop = scanStop;
-  // the phone's own QR reader when it has one (fast and good with screens), otherwise jsQR
+  // two readers: the phone's own (BarcodeDetector, when there is one) and jsQR; they take turns, because the
+  // phone's reader can claim to work and still find nothing
   let detector = null;
   try { if (window.BarcodeDetector && (await BarcodeDetector.getSupportedFormats()).includes('qr_code')) detector = new BarcodeDetector({ formats: ['qr_code'] }); } catch (e) { detector = null; }
   try {
     const [media] = await Promise.all([
       navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false }),
-      detector || window.jsQR ? null : loadScript('jsqr.js?v=1'),
+      window.jsQR ? null : loadScript('jsqr.js?v=1').catch(() => {}),
     ]);
     stream = media;
     if (!alive || scanStop !== myStop) { stream.getTracks().forEach(t => t.stop()); return; }
@@ -1405,32 +1408,34 @@ async function scanSheet() {
     if (!code) { msg.textContent = 'Dit is niet de goede code. Gebruik de code bij Voortgang overzetten.'; return; }
     sound('tap'); stopScan(); importCode(code);
   };
-  // jsQR on the middle of the picture at full sharpness, and now and then on the whole picture
+  // jsQR on the middle of the picture at full sharpness, a closer look, and now and then the whole picture
+  const CROPS = [0.8, 0.55, 0.8, 1];
   const readJsQR = () => {
     const vw = video.videoWidth, vh = video.videoHeight;
-    const whole = round++ % 3 === 2;
-    const side = whole ? Math.max(vw, vh) : Math.min(vw, vh) * 0.8;
-    const sx = whole ? 0 : (vw - side) / 2, sy = whole ? 0 : (vh - side) / 2, sw = whole ? vw : side, sh = whole ? vh : side;
-    const k = Math.min(1, 1000 / Math.max(sw, sh));
+    const f = CROPS[round++ % CROPS.length];
+    const sw = f === 1 ? vw : Math.min(vw, vh) * f, sh = f === 1 ? vh : sw;
+    const sx = (vw - sw) / 2, sy = (vh - sh) / 2;
+    const k = Math.min(1, 900 / Math.max(sw, sh));
     canvas.width = Math.round(sw * k); canvas.height = Math.round(sh * k);
     ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
     const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const r = window.jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
     return r && r.data;
   };
+  let turn = 0, tries = 0;
   const tick = async t => {
     if (!alive) return;
     raf = requestAnimationFrame(tick);
-    if (busy || t - last < 100 || video.readyState < 2 || !video.videoWidth) return;
+    if (busy || t - last < 90 || video.readyState < 2 || !video.videoWidth) return;
     last = t; busy = true;
     try {
       let text = null;
-      if (detector) { const codes = await detector.detect(video); text = codes.length ? codes[0].rawValue : null; }
-      else if (window.jsQR) text = readJsQR();
+      if (detector && turn++ % 2 === 0) {
+        try { const codes = await detector.detect(video); text = codes.length ? codes[0].rawValue : null; } catch (e) { detector = null; }
+      } else if (window.jsQR) text = readJsQR();
       if (text && alive) found(text);
-    } catch (e) {
-      if (detector) { detector = null; if (!window.jsQR) loadScript('jsqr.js?v=1').catch(() => {}); }   // fall back to jsQR
-    } finally { busy = false; }
+      else if (++tries === 60) msg.textContent = 'Nog niet gelukt? Iets dichterbij of verder weg houden, of scan de code met de gewone camera-app.';
+    } catch (e) { /* try again next frame */ } finally { busy = false; }
   };
   raf = requestAnimationFrame(tick);
 }

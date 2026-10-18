@@ -1,6 +1,6 @@
 /* Offline support. Network first (so updates arrive right away), cache as fallback. */
-const CACHE = 'sudoku-v19';
-const FILES = ['./', 'index.html', 'style.css?v=19', 'game.js?v=19', 'tracking-config.js?v=19', 'tracking.js?v=19', 'core.js?v=19', 'puzzles.js?v=19', 'manifest.webmanifest',
+const CACHE = 'sudoku-v20';
+const FILES = ['./', 'index.html', 'style.css?v=20', 'game.js?v=20', 'tracking-config.js?v=20', 'tracking.js?v=20', 'core.js?v=20', 'puzzles.js?v=20', 'manifest.webmanifest',
   'qrcode.js?v=1', 'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/favicon-32.png'];
 
 self.addEventListener('install', e => {
@@ -15,8 +15,10 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   const url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== location.origin || url.pathname.endsWith('.apk')) return;   // the Android app downloads straight
+  // the page itself is always checked with the server (no browser cache), so a new version arrives right away
+  const fresh = req.mode === 'navigate' ? fetch(req.url, { cache: 'no-cache', credentials: 'same-origin' }) : fetch(req);
   e.respondWith(
-    fetch(req).then(res => {
+    fresh.then(res => {
       if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
       return res;
     }).catch(() => caches.match(req, { ignoreSearch: false }).then(r => r || caches.match('index.html')))
