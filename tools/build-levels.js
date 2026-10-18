@@ -62,30 +62,39 @@ const n = tiers.map(t => t.length), L = [0, 0, 0, 0];
 L[3] = Math.min(n[3], 2 * n[4]);
 L[2] = Math.min(2 * n[3] - L[3], n[2]);
 L[1] = Math.min(2 * n[2] - L[2], n[1]);
-L[0] = Math.min(2 * n[1] - L[1], 1000);
-console.log('crossfades', L);
-const levels = [];
-const pos = tiers.map(() => 0);
-const take = t => levels.push(tiers[t][pos[t]++]);
-for (let t = 0; t < 5; t++) {
-  // this tier alone
-  const alone = n[t] - (t ? L[t - 1] / 2 : 0) - (t < 4 ? L[t] / 2 : 0);
-  for (let k = 0; k < Math.round(alone); k++) if (pos[t] < n[t]) take(t);
-  if (t === 4) break;
-  // crossfade to the next tier
-  let usedNext = 0;
-  for (let j = 0; j < L[t]; j++) {
-    const want = Math.round((j + 1) * (j + 1) / (2 * L[t]));   // area under a straight 0→1 ramp
-    if (usedNext < want && pos[t + 1] < n[t + 1]) { take(t + 1); usedNext++; }
-    else if (pos[t] < n[t]) take(t); else { take(t + 1); usedNext++; }
-  }
-  while (pos[t] < n[t]) take(t);               // rounding leftovers
-}
-for (let t = 0; t < 5; t++) while (pos[t] < n[t]) take(t);
 // The easiest puzzles are left out: level 1 starts where you can fill about 10 squares at any moment
 // (average over the solve); about 450 levels later that is 8. Raise SKIP to start harder.
 const SKIP = 1350;
+// Levels 1–1000 need only "one place / one number"; the first puzzle that needs a pair is level 1001.
+const FIRST_PAIR = 1001;
+function order(L) {
+  const levels = [];
+  const pos = tiers.map(() => 0);
+  const take = t => levels.push(tiers[t][pos[t]++]);
+  for (let t = 0; t < 5; t++) {
+    // this tier alone
+    const alone = n[t] - (t ? L[t - 1] / 2 : 0) - (t < 4 ? L[t] / 2 : 0);
+    for (let k = 0; k < Math.round(alone); k++) if (pos[t] < n[t]) take(t);
+    if (t === 4) break;
+    // crossfade to the next tier
+    let usedNext = 0;
+    for (let j = 0; j < L[t]; j++) {
+      const want = Math.round((j + 1) * (j + 1) / (2 * L[t]));   // area under a straight 0→1 ramp
+      if (usedNext < want && pos[t + 1] < n[t + 1]) { take(t + 1); usedNext++; }
+      else if (pos[t] < n[t]) take(t); else { take(t + 1); usedNext++; }
+    }
+    while (pos[t] < n[t]) take(t);               // rounding leftovers
+  }
+  for (let t = 0; t < 5; t++) while (pos[t] < n[t]) take(t);
+  return levels;
+}
+// the longest (gentlest) crossfade into pairs that still keeps the first pair at FIRST_PAIR or later
+const firstPair = lv => lv.findIndex(x => x.tier > 1) + 1 - SKIP;
+for (L[0] = Math.min(2 * n[1] - L[1], 1000); L[0] > 2 && firstPair(order(L)) < FIRST_PAIR; L[0]--);
+console.log('crossfades', L);
+const levels = order(L);
 levels.splice(0, SKIP);
+console.log('first pair at level', levels.findIndex(x => x.tier > 1) + 1);
 levels.forEach((x, k) => { x.band = x.tier === 1 ? 'm' : 'hxMX'[x.tier - 2]; });
 console.log('levels', levels.length);
 for (let a = 1; a <= levels.length; a += 100) {

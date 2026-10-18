@@ -6,12 +6,13 @@ const C = require('../core.js');
 const empties = g => g.puz.flatMap((v, i) => v ? [] : [i]);
 const put = (a, i, d) => { a.game.select(i); a.game.input(d); };
 
-test('all puzzles form one gentle line: only singles up to level 700, hardest at the end', () => {
+test('all puzzles form one gentle line: only singles up to level 1000, pairs from 1001, hardest at the end', () => {
   const a = app(), g = a.game, N = g.LEVEL_COUNT;
   assert.ok(N >= 3500);
   const tierAt = n => C.rate(g.levelEntry(n).puz).level;
-  for (let n = 1; n <= 700; n += 37) assert.equal(tierAt(n), 1, `level ${n} only needs singles`);
-  for (let n = 701; n <= 1100; n += 41) assert.ok(tierAt(n) <= 2, `level ${n} still doable`);
+  for (let n = 1; n <= 1000; n += 1) assert.equal(tierAt(n), 1, `level ${n} only needs singles`);
+  assert.equal(tierAt(1001), 2, 'level 1001 is the first that needs a pair');
+  for (let n = 1001; n <= 1400; n += 41) assert.ok(tierAt(n) <= 2, `level ${n} still doable`);
   for (const n of [N - 50, N, N + 1, N + 999]) {
     const e = g.levelEntry(n);
     assert.equal(C.solve(e.puz, 2).count, 1, `level ${n} unique`);
