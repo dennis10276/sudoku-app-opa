@@ -490,6 +490,7 @@ body.dark .seg button.on { background: var(--accent-soft); }
 .rank .pos { width: 30px; text-align: center; font-weight: 900; color: var(--muted); }
 .rank .nm { flex: 1; font-weight: 800; }
 .rank .rk-lv { font-weight: 900; color: var(--user); font-variant-numeric: tabular-nums; }
+.rank .rk-lv.unknown { color: var(--muted); font-weight: 700; font-size: 17px; }
 .rank li.me { background: var(--gold-soft); border-radius: 12px; border-top-color: transparent; }
 .rank li.me + li { border-top-color: transparent; }
 .rank-note { margin: 6px 2px 0; font-size: 16px; font-weight: 700; color: var(--muted); }

@@ -88,3 +88,14 @@ test('the ranking shows the family by level, one person per name, test devices l
   assert.deepEqual(rows, ['👑 Dennis level 25', '2 Jij level 1']);
   assert.match(a.nodes.get('rankNote').textContent, /Nog 24 levels en je haalt Dennis in/);
 });
+
+test('players without a reported level yet still appear, and the ranking shows up', async () => {
+  const A = 'a'.repeat(32);
+  const remote = url => url.includes('/players.json') ? { [A]: { name: 'Opa' } } : url.includes(A) ? { x: { app: 'sudoku', detail: { build: 'sudoku-7' } } } : null;
+  const a = app(remote);
+  a.game.show('Home');
+  await new Promise(r => setTimeout(r, 20));
+  const rows = a.nodes.get('rankList').children.map(li => li.children.map(c => c.textContent).join(' '));
+  assert.deepEqual(rows, ['1 Jij level 1', '2 Opa level volgt']);
+  assert.equal(a.nodes.get('homeRank').hidden, false);
+});

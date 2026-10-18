@@ -951,16 +951,17 @@ async function refreshRanking(force) {
     for (const [key, p] of Object.entries(players || {})) {
       if (!/^[a-f0-9]{32}$/.test(key) || !p || typeof p.name !== 'string' || !p.name.trim() || /test/i.test(p.name)) continue;
       const id = normName(p.name);
-      if (!people.has(id)) people.set(id, { names: [], keys: [], level: 0 });
+      if (!people.has(id)) people.set(id, { names: [], keys: [], level: 0, plays: false });
       people.get(id).names.push(p.name.trim().slice(0, 20)); people.get(id).keys.push(key);
     }
     await Promise.all([...people.values()].flatMap(person => person.keys.map(async key => {
       const q = new URLSearchParams({ orderBy: '"start"', limitToLast: '40' });
       const recs = await (await fetch(`${base}/sessions/${key}.json?${q}`)).json();
-      for (const r of Object.values(recs || {})) if (r && r.app === 'sudoku') person.level = Math.max(person.level, levelFromMode(r.detail && r.detail.mode));
+      for (const r of Object.values(recs || {})) if (r && r.app === 'sudoku') { person.plays = true; person.level = Math.max(person.level, levelFromMode(r.detail && r.detail.mode)); }
     })));
     const me = playTracking?.deviceId;
-    rank.rows = [...people.values()].filter(p => p.level > 0 || (me && p.keys.includes(me))).map(p => {
+    // people who play Sudoku but haven't reported a level yet (older app version) still appear, as "level volgt"
+    rank.rows = [...people.values()].filter(p => p.plays || (me && p.keys.includes(me))).map(p => {
       const count = new Map(); p.names.forEach(n => count.set(n, (count.get(n) || 0) + 1));
       const name = [...count.keys()].sort((a, b) => count.get(b) - count.get(a) || (/^[A-Z][a-z]/.test(b) ? 1 : 0) - (/^[A-Z][a-z]/.test(a) ? 1 : 0))[0];
       return { name, level: p.level, me: !!me && p.keys.includes(me) };
@@ -979,20 +980,22 @@ function renderRanking() {
   const others = rows.filter(r => !r.me);
   if (!others.length) { box.hidden = true; return; }
   rows.sort((a, b) => b.level - a.level || (a.me ? -1 : b.me ? 1 : 0));
+  const crown = rows.filter(r => r.level > 0).length > 1 && rows.filter(r => r.level === rows[0].level).length === 1;
   const list = $('rankList'); list.replaceChildren();
   rows.slice(0, 6).forEach((r, i) => {
     const li = document.createElement('li');
     li.className = (r.me ? 'me ' : '') + (i === 0 ? 'first' : '');
-    const pos = document.createElement('span'); pos.className = 'pos'; pos.textContent = i === 0 ? '👑' : String(i + 1);
+    const pos = document.createElement('span'); pos.className = 'pos'; pos.textContent = i === 0 && crown ? '👑' : String(i + 1);
     const name = document.createElement('span'); name.className = 'nm'; name.textContent = r.me ? `${r.name === 'Jij' ? 'Jij' : r.name + ' (jij)'}` : r.name;
-    const lv = document.createElement('span'); lv.className = 'rk-lv'; lv.textContent = `level ${r.level}`;
+    const lv = document.createElement('span'); lv.className = 'rk-lv' + (r.level ? '' : ' unknown'); lv.textContent = r.level ? `level ${r.level}` : 'level volgt';
     li.append(pos, name, lv); list.appendChild(li);
   });
-  const ahead = rows.filter(r => r.level > mine.level).sort((a, b) => a.level - b.level)[0];
-  const behind = rows.filter(r => !r.me && r.level < mine.level).sort((a, b) => b.level - a.level)[0];
+  const known = rows.filter(r => r.me || r.level > 0);
+  const ahead = known.filter(r => r.level > mine.level).sort((a, b) => a.level - b.level)[0];
+  const behind = known.filter(r => !r.me && r.level < mine.level).sort((a, b) => b.level - a.level)[0];
   $('rankNote').textContent = ahead ? `Nog ${ahead.level - mine.level} ${ahead.level - mine.level === 1 ? 'level' : 'levels'} en je haalt ${ahead.name} in!`
     : behind ? `Je staat bovenaan! ${behind.name} zit ${mine.level - behind.level} ${mine.level - behind.level === 1 ? 'level' : 'levels'} achter je.`
-    : 'Jullie staan gelijk!';
+    : known.length > 1 ? 'Jullie staan gelijk!' : 'Het level van de anderen verschijnt zodra zij weer Sudoku spelen.';
   box.hidden = false;
 }
 
