@@ -71,3 +71,10 @@ test('restarting counts a new attempt and switching levels closes the previous s
   assert.deepEqual(records.map(r => r.detail.reason), ['restart', 'new_game', 'menu']);
   assert.equal(new Set(records.map(r => r.detail.round)).size, 3);
 });
+
+test('the family overview learns which level is played and how far opa has come', async () => {
+  const a = app(); a.game.newGame(1); a.game.select(blank(a)); a.game.input(a.game.G.sol[a.game.sel]);
+  a.nodes.get('gPause').listeners.click(); await a.flush();
+  const r = [...a.records.values()][0];
+  assert.equal(r.detail.mode, 'L1|1'); assert.equal(r.detail.build, 'sudoku-8');
+});
