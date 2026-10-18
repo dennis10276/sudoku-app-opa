@@ -601,8 +601,8 @@ body.dark .stat.gold b { color: var(--gold); }
 .rc-togo { margin-top: 6px; font-size: 17px; font-weight: 700; color: #c6d6f7; }
 .rc-togo b { color: #fff; }
 .rc-rank { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
-.rc-rank .rk-label { font-size: 15px; font-weight: 800; color: #c6d6f7; margin-right: 2px; }
-.rc-rank .rk { font-size: 16px; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: rgba(255, 255, 255, .12); color: #fff; }
+.rc-rank .rk-label { font-size: 18px; margin-right: 0; }
+.rc-rank .rk { font-size: 15px; font-weight: 800; padding: 3px 9px; white-space: nowrap; border-radius: 999px; background: rgba(255, 255, 255, .12); color: #fff; }
 .rc-rank .rk.me { background: var(--rgold); color: #3a2600; }
 .rc-cta { margin-top: auto; padding-top: 10px; opacity: 0; transform: translateY(10px); transition: all .35s; pointer-events: none; }
 .rc-cta.in { opacity: 1; transform: none; pointer-events: auto; }

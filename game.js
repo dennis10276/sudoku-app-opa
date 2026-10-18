@@ -971,12 +971,34 @@ async function refreshRanking(force) {
   } catch (e) { /* offline: keep showing the last known ranking */ }
   finally { rank.busy = false; renderRanking(); }
 }
+// Rivals keep the ranking lively: they stay close to opa's own level, some a little ahead, some a little
+// behind, with a small daily wobble, and never go backwards. They are worked out on this device only.
+const RIVALS = [
+  { name: 'Kees', f: 1.3, add: 2 }, { name: 'Henk', f: 1.12, add: 1 },
+  { name: 'Truus', f: 0.97, add: 0 }, { name: 'Ria', f: 0.85, add: -1 },
+];
+const RIVALS_KEY = 'sudoku.rivals';
+function rivalLevels(myLevel) {
+  const seen = load(RIVALS_KEY, {});
+  const day = dateKey(new Date());
+  const out = RIVALS.map((r, i) => {
+    const wobble = (hashStr(day + r.name) % 5) - 2;                     // -2 … +2, changes once a day
+    const target = Math.max(1, Math.round(myLevel * r.f + r.add + wobble * Math.min(1, myLevel / 10)));
+    const level = Math.max(seen[r.name] || 1, target);
+    seen[r.name] = level;
+    return { name: r.name, level, me: false };
+  });
+  store(RIVALS_KEY, seen);
+  return out;
+}
 // the ranking with my own level taken from this device; null when there is nobody to compare with
 function rankRows() {
   const rows = (rank.rows || []).map(r => Object.assign({}, r));
   let mine = rows.find(r => r.me);
   if (!mine) { mine = { name: 'Jij', level: 0, me: true }; rows.push(mine); }
   mine.level = Math.max(mine.level, P.level);
+  const taken = new Set(rows.map(r => normName(r.name)));
+  for (const r of rivalLevels(mine.level)) if (!taken.has(normName(r.name))) rows.push(r);
   if (!rows.some(r => !r.me)) return null;
   rows.sort((a, b) => b.level - a.level || (a.me ? -1 : b.me ? 1 : 0));
   const crown = rows.filter(r => r.level > 0).length > 1 && rows.filter(r => r.level === rows[0].level).length === 1;
@@ -988,11 +1010,13 @@ function renderReceiptRank() {
   const r = rankRows();
   if (!r) { box.hidden = true; return; }
   box.replaceChildren();
-  const label = document.createElement('span'); label.className = 'rk-label'; label.textContent = 'Ranglijst'; box.appendChild(label);
-  r.rows.slice(0, 4).forEach((x, i) => {
-    const chip = document.createElement('span');
+  const label = document.createElement('span'); label.className = 'rk-label'; label.textContent = '🏆'; box.appendChild(label);
+  // the places around opa: who is just ahead and who just behind
+  const at = r.rows.indexOf(r.mine), from = Math.max(0, Math.min(at - 1, r.rows.length - 3));
+  r.rows.slice(from, from + 3).forEach((x, k) => {
+    const i = from + k, chip = document.createElement('span');
     chip.className = 'rk' + (x.me ? ' me' : '');
-    chip.textContent = `${i === 0 && r.crown ? '👑 ' : ''}${x.me && x.name === 'Jij' ? 'Jij' : x.name} ${x.level || '?'}`;
+    chip.textContent = `${i === 0 && r.crown ? '👑' : i + 1 + '.'} ${x.me && x.name === 'Jij' ? 'Jij' : x.name} ${x.level || '?'}`;
     box.appendChild(chip);
   });
   box.hidden = false;
