@@ -16,6 +16,7 @@ Klassieke Sudoku in het Nederlands, zonder reclame. Werkt als web-app: open de p
 - **Puntenbon** na elk level: de opgeloste puzzel licht op bij elke regel (welke getallen, welke reeks, welke rijen/kolommen/blokken), met sterren, record, totaalscore en de weg naar de volgende medaille. Tikken slaat de animatie over.
 - Opnieuw spelen van een level kan altijd; alleen een betere score telt mee in het totaal.
 - Twee keer verloren op hetzelfde level? Dan mag je het overslaan.
+- **Ranglijst** op het startscherm: op welk level de familie staat ("Nog 5 levels en je haalt Dennis in!"). Iedereen die Sudoku speelt en in het speeloverzicht een naam heeft gekregen, staat erin; apparaten met dezelfde naam zijn één persoon, namen met "test" worden overgeslagen. Het eigen level komt altijd van het eigen toestel.
 - **Dagelijkse uitdaging** met kalender, afgestemd op je eigen level.
 - Groot, vet en contrastrijk bord: het bord loopt bijna van rand tot rand, cijfers vullen het vakje; notities staan precies in het midden van hun plekje. "Extra groot" in de instellingen.
 - Notities, Wissen, onbeperkt Ongedaan maken, Hint met uitleg ("In deze rij kan de 5 alleen nog hier.")

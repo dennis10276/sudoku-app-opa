@@ -921,6 +921,7 @@ function renderHome() {
     $('homePlayTxt').textContent = `Speel level ${P.level}`;
     sub.hidden = true; next.hidden = true;
   }
+  renderRanking(); refreshRanking(false);
 }
 $('homePlay').addEventListener('click', () => {
   sound('tap');
@@ -931,6 +932,69 @@ $('homePlay').addEventListener('click', () => {
 });
 $('homeNext').addEventListener('click', () => { sound('tap'); newGame(P.level); });
 $('homeDaily').addEventListener('click', () => { sound('tap'); calSel = todayKey(); calMonth = null; show('Daily'); });
+
+/* ---------- ranking: which level the family is at ----------
+   Everyone's Sudoku app reports "L<played>|<unlocked>" to the family database. Devices with the same
+   name are one person (on an iPhone each home-screen app has its own code). Names come from the dashboard. */
+const RANK_KEY = 'sudoku.ranking';
+const rank = { rows: load(RANK_KEY, null), at: 0, busy: false };
+const rankBase = () => String((window.SUDOKU_TRACKING || {}).databaseUrl || '').replace(/\/$/, '');
+const normName = s => typeof s === 'string' ? s.trim().replace(/\s+/g, ' ').toLowerCase() : '';
+const levelFromMode = m => { const x = typeof m === 'string' && /^(?:L\d{1,5}|D|O)\|(\d{1,5})$/.exec(m); return x ? Number(x[1]) : 0; };
+async function refreshRanking(force) {
+  const base = rankBase();
+  if (!base || typeof fetch !== 'function' || rank.busy || (!force && Date.now() - rank.at < 5 * 60000)) return;
+  rank.busy = true; rank.at = Date.now();
+  try {
+    const players = await (await fetch(`${base}/players.json`)).json();
+    const people = new Map();
+    for (const [key, p] of Object.entries(players || {})) {
+      if (!/^[a-f0-9]{32}$/.test(key) || !p || typeof p.name !== 'string' || !p.name.trim() || /test/i.test(p.name)) continue;
+      const id = normName(p.name);
+      if (!people.has(id)) people.set(id, { names: [], keys: [], level: 0 });
+      people.get(id).names.push(p.name.trim().slice(0, 20)); people.get(id).keys.push(key);
+    }
+    await Promise.all([...people.values()].flatMap(person => person.keys.map(async key => {
+      const q = new URLSearchParams({ orderBy: '"start"', limitToLast: '40' });
+      const recs = await (await fetch(`${base}/sessions/${key}.json?${q}`)).json();
+      for (const r of Object.values(recs || {})) if (r && r.app === 'sudoku') person.level = Math.max(person.level, levelFromMode(r.detail && r.detail.mode));
+    })));
+    const me = playTracking?.deviceId;
+    rank.rows = [...people.values()].filter(p => p.level > 0 || (me && p.keys.includes(me))).map(p => {
+      const count = new Map(); p.names.forEach(n => count.set(n, (count.get(n) || 0) + 1));
+      const name = [...count.keys()].sort((a, b) => count.get(b) - count.get(a) || (/^[A-Z][a-z]/.test(b) ? 1 : 0) - (/^[A-Z][a-z]/.test(a) ? 1 : 0))[0];
+      return { name, level: p.level, me: !!me && p.keys.includes(me) };
+    });
+    store(RANK_KEY, rank.rows);
+  } catch (e) { /* offline: keep showing the last known ranking */ }
+  finally { rank.busy = false; renderRanking(); }
+}
+function renderRanking() {
+  const box = $('homeRank'); if (!box) return;
+  let rows = (rank.rows || []).map(r => Object.assign({}, r));
+  // my own level is always the one on this device
+  let mine = rows.find(r => r.me);
+  if (!mine) { mine = { name: 'Jij', level: 0, me: true }; rows.push(mine); }
+  mine.level = Math.max(mine.level, P.level);
+  const others = rows.filter(r => !r.me);
+  if (!others.length) { box.hidden = true; return; }
+  rows.sort((a, b) => b.level - a.level || (a.me ? -1 : b.me ? 1 : 0));
+  const list = $('rankList'); list.replaceChildren();
+  rows.slice(0, 6).forEach((r, i) => {
+    const li = document.createElement('li');
+    li.className = (r.me ? 'me ' : '') + (i === 0 ? 'first' : '');
+    const pos = document.createElement('span'); pos.className = 'pos'; pos.textContent = i === 0 ? '👑' : String(i + 1);
+    const name = document.createElement('span'); name.className = 'nm'; name.textContent = r.me ? `${r.name === 'Jij' ? 'Jij' : r.name + ' (jij)'}` : r.name;
+    const lv = document.createElement('span'); lv.className = 'rk-lv'; lv.textContent = `level ${r.level}`;
+    li.append(pos, name, lv); list.appendChild(li);
+  });
+  const ahead = rows.filter(r => r.level > mine.level).sort((a, b) => a.level - b.level)[0];
+  const behind = rows.filter(r => !r.me && r.level < mine.level).sort((a, b) => b.level - a.level)[0];
+  $('rankNote').textContent = ahead ? `Nog ${ahead.level - mine.level} ${ahead.level - mine.level === 1 ? 'level' : 'levels'} en je haalt ${ahead.name} in!`
+    : behind ? `Je staat bovenaan! ${behind.name} zit ${mine.level - behind.level} ${mine.level - behind.level === 1 ? 'level' : 'levels'} achter je.`
+    : 'Jullie staan gelijk!';
+  box.hidden = false;
+}
 
 /* ---------- levels ---------- */
 let lvPage = null;

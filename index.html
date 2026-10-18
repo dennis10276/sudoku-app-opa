@@ -15,7 +15,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="style.css?v=8">
+<link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
 
@@ -42,6 +42,11 @@
       <button class="btn big" id="homeNext" hidden><span id="homeNextTxt">Speel level 1</span></button>
     </div>
 
+    <section class="rank" id="homeRank" hidden aria-labelledby="rankTitle">
+      <h2 id="rankTitle">Ranglijst</h2>
+      <ol id="rankList"></ol>
+      <p class="rank-note" id="rankNote"></p>
+    </section>
     <button class="daily-card" id="homeDaily">
       <span class="dc-ic"><svg viewBox="0 0 24 24"><use href="#i-cal"/></svg><b id="homeDailyDay">11</b></span>
       <span class="dc-txt"><b>Dagelijkse uitdaging</b><span id="homeDailyDate">zondag 11 oktober</span></span>
@@ -248,10 +253,10 @@
   </defs>
 </svg>
 
-<script src="puzzles.js?v=8"></script>
-<script src="core.js?v=8"></script>
-<script src="tracking-config.js?v=8"></script>
-<script src="tracking.js?v=8"></script>
-<script src="game.js?v=8"></script>
+<script src="puzzles.js?v=9"></script>
+<script src="core.js?v=9"></script>
+<script src="tracking-config.js?v=9"></script>
+<script src="tracking.js?v=9"></script>
+<script src="game.js?v=9"></script>
 </body>
 </html>

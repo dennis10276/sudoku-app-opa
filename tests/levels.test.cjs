@@ -74,3 +74,17 @@ test('hints give no points; after losing a level twice it may be skipped', () =>
   }
   assert.equal(g.P.fails[1], 2);
 });
+
+test('the ranking shows the family by level, one person per name, test devices left out', async () => {
+  const A = 'a'.repeat(32), B = 'b'.repeat(32), D = 'd'.repeat(32);
+  const sud = mode => ({ x: { app: 'sudoku', detail: { mode } } });
+  const remote = url => url.includes('/players.json')
+    ? { [A]: { name: 'Dennis' }, [B]: { name: 'dennis ' }, [D]: { name: 'DennisTEST' } }
+    : url.includes(A) ? sud('L20|21') : url.includes(B) ? sud('D|25') : url.includes(D) ? sud('L900|900') : null;
+  const a = app(remote);
+  a.game.show('Home');
+  await new Promise(r => setTimeout(r, 20));
+  const rows = a.nodes.get('rankList').children.map(li => li.children.map(c => c.textContent).join(' '));
+  assert.deepEqual(rows, ['👑 Dennis level 25', '2 Jij level 1']);
+  assert.match(a.nodes.get('rankNote').textContent, /Nog 24 levels en je haalt Dennis in/);
+});

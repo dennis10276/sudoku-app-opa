@@ -481,6 +481,19 @@ body.dark .seg button.on { background: var(--accent-soft); }
   .home-body { gap: 12px; }
 }
 
+/* ---------- family ranking on the start screen ---------- */
+.rank { width: 100%; background: var(--card); border: 2px solid var(--line); border-radius: 20px; padding: 10px 14px 10px; }
+.rank h2 { margin: 0 0 2px; font-size: 19px; font-weight: 900; }
+.rank ol { list-style: none; margin: 0; padding: 0; }
+.rank li { display: flex; align-items: center; gap: 12px; padding: 7px 6px; border-top: 1px solid var(--line); font-size: 20px; }
+.rank li:first-child { border-top: 0; }
+.rank .pos { width: 30px; text-align: center; font-weight: 900; color: var(--muted); }
+.rank .nm { flex: 1; font-weight: 800; }
+.rank .rk-lv { font-weight: 900; color: var(--user); font-variant-numeric: tabular-nums; }
+.rank li.me { background: var(--gold-soft); border-radius: 12px; border-top-color: transparent; }
+.rank li.me + li { border-top-color: transparent; }
+.rank-note { margin: 6px 2px 0; font-size: 16px; font-weight: 700; color: var(--muted); }
+
 /* ---------- levels ---------- */
 .lv-body { flex: 1; overflow-y: auto; padding: 4px 14px 24px; touch-action: pan-y; }
 .lv-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; max-width: 560px; margin: 0 auto; }
