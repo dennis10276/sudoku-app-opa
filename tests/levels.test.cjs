@@ -113,3 +113,20 @@ test('rivals stay close to opa, never go back and are shown like everyone else',
   for (const name of ['Kees', 'Henk', 'Truus', 'Ria']) assert.ok(later[name] >= first[name], `${name} never goes back`);
   assert.equal(a.nodes.get('homeRank').hidden, false);
 });
+
+test('on opa\'s phone he is called Aad, and the family is always on the receipt line', async () => {
+  const C = 'c'.repeat(32);
+  let a;
+  const remote = url => url.includes('/players.json') ? { [a.game.deviceId]: { name: 'OPa' }, [C]: { name: 'Dennis' } }
+    : url.includes(C) ? { x: { app: 'sudoku', detail: { mode: 'L90|90' } } } : null;
+  a = app(remote);
+  a.game.P.level = 5; a.game.show('Home');
+  await new Promise(r => setTimeout(r, 20));
+  const names = a.nodes.get('rankList').children.map(li => li.children[1].textContent);
+  assert.ok(names.includes('Aad')); assert.ok(names.includes('Dennis'));
+  a.game.renderReceiptRank();
+  const chips = a.nodes.get('rcRank').children.slice(1).map(c => c.textContent);
+  assert.ok(chips.some(c => /Dennis 90$/.test(c)), chips.join(' | '));
+  assert.ok(chips.some(c => /Aad 5$/.test(c)), chips.join(' | '));
+  assert.ok(chips.length <= 4);
+});

@@ -986,7 +986,7 @@ function rivalLevels(myLevel) {
     const target = Math.max(1, Math.round(myLevel * r.f + r.add + wobble * Math.min(1, myLevel / 10)));
     const level = Math.max(seen[r.name] || 1, target);
     seen[r.name] = level;
-    return { name: r.name, level, me: false };
+    return { name: r.name, level, me: false, rival: true };
   });
   store(RIVALS_KEY, seen);
   return out;
@@ -1004,19 +1004,27 @@ function rankRows() {
   const crown = rows.filter(r => r.level > 0).length > 1 && rows.filter(r => r.level === rows[0].level).length === 1;
   return { rows, mine, crown };
 }
-// a compact line on the points receipt: "Ranglijst  👑 Dennis 61 · Opa (jij) 15"
+// how a row is named: opa sees himself as "Aad"; anyone else sees "<name> (jij)"
+function shownName(x) {
+  if (!x.me) return x.name;
+  if (normName(x.name) === 'opa') return 'Aad';
+  return x.name === 'Jij' ? 'Jij' : x.name + ' (jij)';
+}
+// a compact line on the points receipt: "🏆 2. Dennis 61 · 3. Henk 16 · 4. Aad 15"
 function renderReceiptRank() {
   const box = $('rcRank'); if (!box) return;
   const r = rankRows();
   if (!r) { box.hidden = true; return; }
   box.replaceChildren();
   const label = document.createElement('span'); label.className = 'rk-label'; label.textContent = '🏆'; box.appendChild(label);
-  // the places around opa: who is just ahead and who just behind
-  const at = r.rows.indexOf(r.mine), from = Math.max(0, Math.min(at - 1, r.rows.length - 3));
-  r.rows.slice(from, from + 3).forEach((x, k) => {
-    const i = from + k, chip = document.createElement('span');
+  // opa himself, the real family members always, then who is just ahead and just behind (3 places, 4 at most)
+  const at = r.rows.indexOf(r.mine), pick = new Set([at]);
+  r.rows.forEach((x, i) => { if (!x.rival && !x.me) pick.add(i); });
+  for (const i of [at - 1, at + 1]) if (pick.size < 3 && i >= 0 && i < r.rows.length) pick.add(i);
+  [...pick].sort((a, b) => a - b).slice(0, 4).forEach(i => {
+    const x = r.rows[i], chip = document.createElement('span');
     chip.className = 'rk' + (x.me ? ' me' : '');
-    chip.textContent = `${i === 0 && r.crown ? '👑' : i + 1 + '.'} ${x.me && x.name === 'Jij' ? 'Jij' : x.name} ${x.level || '?'}`;
+    chip.textContent = `${i === 0 && r.crown ? '👑' : i + 1 + '.'} ${x.me ? shownName(x).replace(' (jij)', '') : x.name} ${x.level || '?'}`;
     box.appendChild(chip);
   });
   box.hidden = false;
@@ -1028,11 +1036,15 @@ function renderRanking() {
   if (!ranked) { box.hidden = true; return; }
   const { rows, mine, crown } = ranked;
   const list = $('rankList'); list.replaceChildren();
-  rows.slice(0, 6).forEach((r, i) => {
+  // everyone real always stays on the list; rivals fill it up to six places
+  const keep = new Set(rows.map((r, i) => (r.rival ? -1 : i)).filter(i => i >= 0));
+  rows.forEach((r, i) => { if (keep.size < 6 && r.rival) keep.add(i); });
+  rows.forEach((r, i) => {
+    if (!keep.has(i)) return;
     const li = document.createElement('li');
     li.className = (r.me ? 'me ' : '') + (i === 0 ? 'first' : '');
     const pos = document.createElement('span'); pos.className = 'pos'; pos.textContent = i === 0 && crown ? '👑' : String(i + 1);
-    const name = document.createElement('span'); name.className = 'nm'; name.textContent = r.me ? `${r.name === 'Jij' ? 'Jij' : r.name + ' (jij)'}` : r.name;
+    const name = document.createElement('span'); name.className = 'nm'; name.textContent = shownName(r);
     const lv = document.createElement('span'); lv.className = 'rk-lv' + (r.level ? '' : ' unknown'); lv.textContent = r.level ? `level ${r.level}` : 'level volgt';
     li.append(pos, name, lv); list.appendChild(li);
   });
@@ -1251,6 +1263,6 @@ function boot() {
   }
 }
 // testing hook
-window.__sudoku = { get G() { return G; }, set G(v) { G = v; }, get sel() { return sel; }, select, input, hint, undo, erase, toggleNotes, newGame, playLevel, show, render, P, S, win, levelSheet, settingsSheet, dailyDone, finishReceipt, closeReceipt, levelEntry, baseFor, LEVEL_COUNT, dailyEntry };
+window.__sudoku = { get deviceId() { return playTracking?.deviceId; }, get G() { return G; }, set G(v) { G = v; }, get sel() { return sel; }, select, input, hint, undo, erase, toggleNotes, newGame, playLevel, show, render, P, S, win, levelSheet, settingsSheet, dailyDone, finishReceipt, closeReceipt, renderReceiptRank, levelEntry, baseFor, LEVEL_COUNT, dailyEntry };
 boot();
 })();
