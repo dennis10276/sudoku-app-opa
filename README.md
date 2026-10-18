@@ -146,8 +146,11 @@ Automatische browserruns (`navigator.webdriver`) sturen geen speelgegevens of sp
 
 Instellingen → **Voortgang overzetten** heeft twee keuzes:
 
-- **Naar een ander apparaat** toont een link en QR-code (`#overzetten=…`, gecomprimeerd met deflate-raw).
-- **Hierheen halen** scant die QR-code met de camera (jsQR, alleen geladen als je scant), of je plakt de link.
+- **Naar een ander apparaat** toont een link en QR-code (`#overzetten=…`). De code is kort gehouden zodat de
+  QR-code makkelijk van een scherm te scannen is: level, punten, sterren per level, dagelijkse uitdagingen van de
+  laatste 120 dagen, instellingen en de meetcode (`2…` als tekst of `3…` gecomprimeerd). Scores per level gaan niet mee.
+- **Hierheen halen** scant die QR-code met de camera (de ingebouwde QR-lezer van de telefoon als die er is,
+  anders jsQR, alleen geladen als je scant), of je plakt de link.
 
 Na bevestiging neemt het spel level, punten, sterren, statistieken, dagelijkse uitdagingen,
 instellingen en de meetcode over, zodat het dashboard het als hetzelfde apparaat ziet.

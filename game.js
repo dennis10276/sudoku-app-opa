@@ -1278,17 +1278,63 @@ const TRANSFER = '#overzetten=';
 const b64url = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
 const unb64url = str => { const s = atob(str.replace(/-/g, '+').replace(/_/g, '/')); const b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); return b; };
 async function pipe(bytes, stream) { return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer()); }
+/* The code is kept short so its QR code stays easy to scan from a screen:
+   "2" + fields joined by "X" (all other characters are 0-9 a-z), or "3" + the same text deflated in base64url.
+   Fields: device key (hex) · level · total · wins · best streak · played · stars per level ("0"–"3" from level 1)
+   · daily challenges of the last 120 days (3-char day number + stars) · settings. Scores per level are not
+   carried over (they only matter when replaying a level). Older "j"/"z" codes (full JSON) still work. */
+const B36 = n => Math.max(0, Math.round(Number(n) || 0)).toString(36);
+const DAY0 = Date.UTC(2024, 0, 1), DAY = 86400000;
+const dayNum = k => { const [y, m, d] = k.split('-').map(Number); return Math.round((Date.UTC(y, m - 1, d) - DAY0) / DAY); };
+const dayKey = n => { const d = new Date(DAY0 + n * DAY); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`; };
+const SET_BOOLS = Object.keys(DEF).filter(k => typeof DEF[k] === 'boolean');
+const SET_OPTS = { theme: ['licht', 'donker', 'auto'], size: ['normaal', 'groot'] };
+function progressText() {
+  const key = playTracking?.deviceId || (load('patience.sharing.v1', {}) || {}).key || '';
+  const top = Object.keys(P.best).map(Number).filter(n => n > 0).reduce((a, n) => Math.max(a, n), 0);
+  let stars = '';
+  for (let n = 1; n <= top; n++) stars += P.best[n] ? String(Math.min(3, Math.max(0, P.best[n].t || 0))) : '0';
+  const today = dayNum(todayKey());
+  const daily = Object.keys(dailyDone).filter(k => /^\d{4}-\d\d-\d\d$/.test(k)).map(k => [dayNum(k), dailyDone[k]])
+    .filter(([n]) => n >= 0 && n > today - 120 && n < 46656).sort((x, y) => x[0] - y[0])
+    .map(([n, d]) => n.toString(36).padStart(3, '0') + Math.min(3, Math.max(0, (d && d.stars) || 0))).join('');
+  const bits = SET_BOOLS.reduce((m, k, i) => m | (S[k] ? 1 << i : 0), 0);
+  const set = B36(bits) + Object.keys(SET_OPTS).map(k => Math.max(0, SET_OPTS[k].indexOf(S[k]))).join('');
+  return [/^[a-f0-9]{32}$/.test(key) ? key : '', B36(P.level), B36(P.total), B36(P.wins), B36(P.bestWins), B36(P.played), stars, daily, set].join('X');
+}
 async function packProgress() {
-  const settings = Object.assign({}, S);
-  const data = { v: 1, P, S: settings, done: dailyDone, key: playTracking?.deviceId || (load('patience.sharing.v1', {}) || {}).key || null };
-  let bytes = new TextEncoder().encode(JSON.stringify(data)), tag = 'j';
-  if (window.CompressionStream) { try { bytes = await pipe(bytes, new CompressionStream('deflate-raw')); tag = 'z'; } catch (e) {} }
-  return tag + b64url(bytes);
+  const text = progressText();
+  let best = '2' + text;
+  if (window.CompressionStream) {
+    try { const z = '3' + b64url(await pipe(new TextEncoder().encode(text), new CompressionStream('deflate-raw'))); if (z.length < best.length) best = z; } catch (e) {}
+  }
+  return best;
+}
+function parseProgressText(text) {
+  const f = text.split('X');
+  if (f.length < 9) throw new Error('bad');
+  const num = x => { const n = parseInt(x || '0', 36); return Number.isFinite(n) ? n : 0; };
+  const best = {};
+  [...f[6]].forEach((c, i) => { if (c !== '0') best[i + 1] = { s: 0, t: Math.min(3, Number(c) || 0) }; });
+  const done = {};
+  for (let i = 0; i + 4 <= f[7].length; i += 4) done[dayKey(parseInt(f[7].slice(i, i + 3), 36))] = { time: 0, score: 0, stars: Number(f[7][i + 3]) || 0 };
+  const bits = num(f[8].slice(0, -2)), opts = f[8].slice(-2);
+  const settings = { v: 2 };
+  SET_BOOLS.forEach((k, i) => { settings[k] = !!(bits & (1 << i)); });
+  Object.keys(SET_OPTS).forEach((k, i) => { settings[k] = SET_OPTS[k][Number(opts[i])] || DEF[k]; });
+  const level = Math.max(1, num(f[1]));
+  return { v: 1, key: f[0] || null, done, S: settings,
+    P: { level, best, total: num(f[2]), fails: {}, wins: num(f[3]), bestWins: num(f[4]), played: num(f[5]) } };
 }
 async function unpackProgress(code) {
-  let bytes = unb64url(code.slice(1));
-  if (code[0] === 'z') bytes = await pipe(bytes, new DecompressionStream('deflate-raw'));
-  const d = JSON.parse(new TextDecoder().decode(bytes));
+  let d;
+  if (code[0] === '2') d = parseProgressText(code.slice(1));
+  else if (code[0] === '3') d = parseProgressText(new TextDecoder().decode(await pipe(unb64url(code.slice(1)), new DecompressionStream('deflate-raw'))));
+  else {
+    let bytes = unb64url(code.slice(1));
+    if (code[0] === 'z') bytes = await pipe(bytes, new DecompressionStream('deflate-raw'));
+    d = JSON.parse(new TextDecoder().decode(bytes));
+  }
   if (!d || d.v !== 1 || !d.P || !(d.P.level >= 1) || typeof d.P.best !== 'object') throw new Error('bad');
   return d;
 }
@@ -1310,12 +1356,12 @@ function transferCode(text) {
   const t = String(text || '').trim();
   const i = t.indexOf(TRANSFER);
   const code = i >= 0 ? t.slice(i + TRANSFER.length) : t;
-  return /^[zj][A-Za-z0-9_-]{8,}$/.test(code) ? code : null;
+  return /^[zj23][A-Za-z0-9_-]{8,}$/.test(code) ? code : null;
 }
 async function scanSheet() {
   const canScan = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
   sheet(`<h2>Code scannen</h2>
-    <p>Kies op het andere apparaat bij Instellingen → <b>Voortgang overzetten</b> → <b>Naar een ander apparaat</b>, en richt de camera op de QR-code.</p>
+    <p>Kies op het andere apparaat bij Instellingen → <b>Voortgang overzetten</b> → <b>Naar een ander apparaat</b>. Houd de telefoon zo dat de QR-code het kader vult.</p>
     ${canScan ? '<div class="scan"><video playsinline muted autoplay></video><i></i></div><p class="scan-msg" id="scanMsg">Camera starten…</p>' : ''}
     <div class="paste"><input id="pasteLink" type="text" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="…of plak hier de link"><button class="btn" data-a="paste">Gebruiken</button></div>
     <div class="btns"><button class="btn ghost" data-a="close">Annuleren</button></div>`, {
@@ -1330,13 +1376,18 @@ async function scanSheet() {
   let stream = null, alive = true, raf = 0;
   scanStop = () => { alive = false; cancelAnimationFrame(raf); if (stream) stream.getTracks().forEach(t => t.stop()); video.srcObject = null; };
   const myStop = scanStop;
+  // the phone's own QR reader when it has one (fast and good with screens), otherwise jsQR
+  let detector = null;
+  try { if (window.BarcodeDetector && (await BarcodeDetector.getSupportedFormats()).includes('qr_code')) detector = new BarcodeDetector({ formats: ['qr_code'] }); } catch (e) { detector = null; }
   try {
     const [media] = await Promise.all([
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false }),
-      window.jsQR ? null : loadScript('jsqr.js?v=1'),
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false }),
+      detector || window.jsQR ? null : loadScript('jsqr.js?v=1'),
     ]);
     stream = media;
     if (!alive || scanStop !== myStop) { stream.getTracks().forEach(t => t.stop()); return; }
+    const track = stream.getVideoTracks()[0];
+    try { const caps = track.getCapabilities ? track.getCapabilities() : {}; if (caps.focusMode && caps.focusMode.includes('continuous')) await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch (e) {}
     video.srcObject = stream; await video.play().catch(() => {});
     msg.textContent = 'Richt de camera op de QR-code.';
   } catch (e) {
@@ -1348,21 +1399,38 @@ async function scanSheet() {
     return;
   }
   const canvas = document.createElement('canvas'), ctx = canvas.getContext('2d', { willReadFrequently: true });
-  let last = 0;
-  const tick = t => {
-    if (!alive) return;
-    raf = requestAnimationFrame(tick);
-    if (t - last < 120 || video.readyState < 2 || !video.videoWidth) return;
-    last = t;
-    const k = Math.min(1, 720 / Math.max(video.videoWidth, video.videoHeight));
-    canvas.width = Math.round(video.videoWidth * k); canvas.height = Math.round(video.videoHeight * k);
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const found = window.jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
-    if (!found || !found.data) return;
-    const code = transferCode(found.data);
+  let last = 0, busy = false, round = 0;
+  const found = text => {
+    const code = transferCode(text);
     if (!code) { msg.textContent = 'Dit is niet de goede code. Gebruik de code bij Voortgang overzetten.'; return; }
     sound('tap'); stopScan(); importCode(code);
+  };
+  // jsQR on the middle of the picture at full sharpness, and now and then on the whole picture
+  const readJsQR = () => {
+    const vw = video.videoWidth, vh = video.videoHeight;
+    const whole = round++ % 3 === 2;
+    const side = whole ? Math.max(vw, vh) : Math.min(vw, vh) * 0.8;
+    const sx = whole ? 0 : (vw - side) / 2, sy = whole ? 0 : (vh - side) / 2, sw = whole ? vw : side, sh = whole ? vh : side;
+    const k = Math.min(1, 1000 / Math.max(sw, sh));
+    canvas.width = Math.round(sw * k); canvas.height = Math.round(sh * k);
+    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const r = window.jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
+    return r && r.data;
+  };
+  const tick = async t => {
+    if (!alive) return;
+    raf = requestAnimationFrame(tick);
+    if (busy || t - last < 100 || video.readyState < 2 || !video.videoWidth) return;
+    last = t; busy = true;
+    try {
+      let text = null;
+      if (detector) { const codes = await detector.detect(video); text = codes.length ? codes[0].rawValue : null; }
+      else if (window.jsQR) text = readJsQR();
+      if (text && alive) found(text);
+    } catch (e) {
+      if (detector) { detector = null; if (!window.jsQR) loadScript('jsqr.js?v=1').catch(() => {}); }   // fall back to jsQR
+    } finally { busy = false; }
   };
   raf = requestAnimationFrame(tick);
 }
@@ -1372,8 +1440,8 @@ async function transferSheet() {
   let qr = '';
   try {
     if (!window.qrcode) await loadScript('qrcode.js?v=1');
-    const q = window.qrcode(0, 'L'); q.addData(link); q.make();
-    qr = q.createSvgTag({ cellSize: 4, margin: 2, scalable: true });
+    const q = window.qrcode(0, 'M'); q.addData(link); q.make();
+    qr = q.createSvgTag({ cellSize: 4, margin: 16, scalable: true });
   } catch (e) { qr = ''; }
   sheet(`<h2>Voortgang overzetten</h2>
     <p>Kies op je andere telefoon bij Instellingen → Voortgang overzetten → <b>Hierheen halen</b> en scan deze code, of stuur jezelf de link. Daar ga je verder op <b>level ${P.level}</b> met ${fmtNum(P.total)} punten.</p>
@@ -1458,6 +1526,6 @@ function boot() {
   }
 }
 // testing hook
-window.__sudoku = { packProgress, get deviceId() { return playTracking?.deviceId; }, get G() { return G; }, set G(v) { G = v; }, get sel() { return sel; }, select, input, hint, undo, erase, toggleNotes, newGame, playLevel, show, render, P, S, win, levelSheet, settingsSheet, dailyDone, finishReceipt, closeReceipt, renderReceiptRank, levelEntry, baseFor, LEVEL_COUNT, dailyEntry };
+window.__sudoku = { packProgress, unpackProgress, transferCode, get deviceId() { return playTracking?.deviceId; }, get G() { return G; }, set G(v) { G = v; }, get sel() { return sel; }, select, input, hint, undo, erase, toggleNotes, newGame, playLevel, show, render, P, S, win, levelSheet, settingsSheet, dailyDone, finishReceipt, closeReceipt, renderReceiptRank, levelEntry, baseFor, LEVEL_COUNT, dailyEntry };
 boot();
 })();

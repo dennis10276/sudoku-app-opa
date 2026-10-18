@@ -158,3 +158,23 @@ test('without a known level for opa there are no rivals', async () => {
   const names = list ? list.children.map(li => li.children[1].textContent) : [];
   assert.ok(!names.some(n => /Joop|Marianne|Frits|Lies/.test(n)), names.join(','));
 });
+
+test('the transfer code is short and brings level, stars, dailies, settings and the device key across', async () => {
+  const a = app(() => null);
+  const g = a.game;
+  Object.assign(g.P, { level: 13, total: 15400, wins: 3, bestWins: 6, played: 15 });
+  for (let n = 1; n <= 12; n++) g.P.best[n] = { s: 900 + n, t: n % 4 === 0 ? 2 : 3 };
+  const today = new Date(), key = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const d1 = key(today), d0 = key(new Date(today.getTime() - 3 * 86400000));
+  g.dailyDone[d1] = { time: 300, score: 2000, stars: 3 }; g.dailyDone[d0] = { time: 400, score: 1000, stars: 2 };
+  g.S.theme = 'donker'; g.S.sound = false;
+  const code = await g.packProgress();
+  assert.ok(code.length < 140, `code length ${code.length}`);
+  assert.equal(g.transferCode('https://x/sudoku-app-opa/#overzetten=' + code), code);
+  const d = await g.unpackProgress(code);
+  assert.equal(d.P.level, 13); assert.equal(d.P.total, 15400); assert.equal(d.P.bestWins, 6); assert.equal(d.P.played, 15);
+  assert.equal(Object.keys(d.P.best).length, 12); assert.equal(d.P.best[4].t, 2); assert.equal(d.P.best[5].t, 3);
+  assert.equal(d.done[d1].stars, 3); assert.equal(d.done[d0].stars, 2);
+  assert.equal(d.S.theme, 'donker'); assert.equal(d.S.sound, false); assert.equal(d.S.autoCheck, true); assert.equal(d.S.v, 2);
+  assert.match(String(d.key || ''), /^([a-f0-9]{32})?$/);
+});

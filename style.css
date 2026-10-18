@@ -681,7 +681,7 @@ body.dark .stat.gold b { color: var(--gold); }
 .ld-feats li::before { content: ""; position: absolute; left: 3px; top: .35em; width: 14px; height: 14px; border-radius: 3px; border: 2px solid var(--l-gold); }
 .ld-feats li b { color: #fff; }
 .ld-android { align-self: center; background: none; border: 0; padding: 4px 8px; font-size: 11px; color: rgba(234,241,252,.28); }
-.qr { width: min(260px, 70vw); margin: 4px auto 14px; background: #fff; padding: 10px; border-radius: 14px; }
+.qr { width: min(380px, 84vw, 56vh); margin: 4px auto 14px; background: #fff; padding: 10px; border-radius: 14px; }
 .qr svg { display: block; width: 100%; height: auto; }
 .scan { position: relative; width: min(300px, 78vw); aspect-ratio: 1; margin: 4px auto 8px; border-radius: 18px; overflow: hidden; background: #0e1a2e; }
 .scan[hidden] { display: none; }
