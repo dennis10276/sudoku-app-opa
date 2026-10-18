@@ -84,7 +84,7 @@ test('the ranking shows the family by level, one person per name, test devices l
   const a = app(remote);
   a.game.show('Home');
   await new Promise(r => setTimeout(r, 20));
-  const rows = a.nodes.get('rankList').children.map(li => li.children.map(c => c.textContent).join(' ')).filter(r => !/Joop|Marianne|Ton|Gerda/.test(r));
+  const rows = a.nodes.get('rankList').children.map(li => li.children.map(c => c.textContent).join(' ')).filter(r => !/Joop|Marianne|Frits|Lies/.test(r));
   assert.ok(rows[0].endsWith('Dennis level 25')); assert.ok(rows.some(r => r.endsWith('Jij level 1')));
   assert.match(a.nodes.get('rankNote').textContent, /^Nog \d+ levels? en je haalt \S+ in!$/);
 });
@@ -106,11 +106,11 @@ test('rivals stay close to opa, never go back and are shown like everyone else',
   g.P.level = 40; g.show('Home');
   const levels = () => Object.fromEntries(a.nodes.get('rankList').children.map(li => [li.children[1].textContent, Number(li.children[2].textContent.replace('level ', ''))]));
   const first = levels();
-  for (const name of ['Joop', 'Marianne', 'Ton', 'Gerda']) assert.ok(Math.abs(first[name] - 40) <= 16, `${name} near opa`);
-  assert.ok(first.Joop > 40 && first.Gerda < 40);
+  for (const name of ['Joop', 'Marianne', 'Frits', 'Lies']) assert.ok(Math.abs(first[name] - 40) <= 16, `${name} near opa`);
+  assert.ok(first.Joop > 40 && first.Lies < 40);
   g.P.level = 20; g.show('Home');
   const later = levels();
-  for (const name of ['Joop', 'Marianne', 'Ton', 'Gerda']) assert.ok(later[name] >= first[name], `${name} never goes back`);
+  for (const name of ['Joop', 'Marianne', 'Frits', 'Lies']) assert.ok(later[name] >= first[name], `${name} never goes back`);
   assert.equal(a.nodes.get('homeRank').hidden, false);
 });
 

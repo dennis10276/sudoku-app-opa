@@ -1,6 +1,6 @@
 /* Offline support. Network first (so updates arrive right away), cache as fallback. */
-const CACHE = 'sudoku-v14';
-const FILES = ['./', 'index.html', 'style.css?v=14', 'game.js?v=14', 'tracking-config.js?v=14', 'tracking.js?v=14', 'core.js?v=14', 'puzzles.js?v=14', 'manifest.webmanifest',
+const CACHE = 'sudoku-v15';
+const FILES = ['./', 'index.html', 'style.css?v=15', 'game.js?v=15', 'tracking-config.js?v=15', 'tracking.js?v=15', 'core.js?v=15', 'puzzles.js?v=15', 'manifest.webmanifest',
   'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/favicon-32.png'];
 
 self.addEventListener('install', e => {

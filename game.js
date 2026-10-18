@@ -975,7 +975,7 @@ async function refreshRanking(force) {
 // behind, with a small daily wobble, and never go backwards. They are worked out on this device only.
 const RIVALS = [
   { name: 'Joop', f: 1.3, add: 2 }, { name: 'Marianne', f: 1.12, add: 1 },
-  { name: 'Ton', f: 0.97, add: 0 }, { name: 'Gerda', f: 0.85, add: -1 },
+  { name: 'Frits', f: 0.97, add: 0 }, { name: 'Lies', f: 0.85, add: -1 },
 ];
 const RIVALS_KEY = 'sudoku.rivals';
 function rivalLevels(myLevel) {
