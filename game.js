@@ -290,7 +290,7 @@ function trackingDetails() {
   if (!G.playId) G.playId = playTracking?.newRound();
   // mode tells the family overview which level is being played and how far opa has unlocked: "L37|38"
   // (a daily challenge is "D|38", an old puzzle "O|38").
-  return { round: G.playId, build: 'sudoku-8', level: G.level, daily: !!G.daily,
+  return { round: G.playId, build: 'sudoku-10', level: G.level, daily: !!G.daily,
     mode: `${G.daily ? 'D' : G.n ? 'L' + G.n : 'O'}|${P.level}`,
     progress: G.val.reduce((n, v, i) => n + (!G.puz[i] && v === G.sol[i] ? 1 : 0), 0),
     total: G.puz.filter(v => !v).length, score: G.score, gameSeconds: G.time,
@@ -513,6 +513,7 @@ function win() {
   }
   saveProgress();
   G.result = R;
+  later(() => refreshRanking(true), 3000);   // the new level reaches the database first, then fetch the ranking
   render();
   for (let i = 0; i < 81; i++) anim(i, 'flash', 45 * (C.ROW[i] + C.COL[i]));
   later(() => sound('win'), 250);
@@ -638,7 +639,7 @@ function showReceipt(g, R) {
   step(t + 250, fast => {
     $('rcTot').textContent = fmtNum(total);
     if (R.record) $('rcRec').classList.add('on');
-    $('rcProg').classList.add('in');
+    $('rcProg').classList.add('in'); renderReceiptRank();
     $('rcBar').style.width = (R.medal ? 100 : pctAfter) + '%';
     if (fast) $('rcGrand').textContent = fmtNum(P.total);
     else { countUp($('rcGrand'), R.grandBefore, P.total, 1100); burstAt($('rcTot'), R.medal ? 140 : 70, R.medal ? 1.4 : 1.1); sound('win'); }
@@ -970,17 +971,38 @@ async function refreshRanking(force) {
   } catch (e) { /* offline: keep showing the last known ranking */ }
   finally { rank.busy = false; renderRanking(); }
 }
-function renderRanking() {
-  const box = $('homeRank'); if (!box) return;
-  let rows = (rank.rows || []).map(r => Object.assign({}, r));
-  // my own level is always the one on this device
+// the ranking with my own level taken from this device; null when there is nobody to compare with
+function rankRows() {
+  const rows = (rank.rows || []).map(r => Object.assign({}, r));
   let mine = rows.find(r => r.me);
   if (!mine) { mine = { name: 'Jij', level: 0, me: true }; rows.push(mine); }
   mine.level = Math.max(mine.level, P.level);
-  const others = rows.filter(r => !r.me);
-  if (!others.length) { box.hidden = true; return; }
+  if (!rows.some(r => !r.me)) return null;
   rows.sort((a, b) => b.level - a.level || (a.me ? -1 : b.me ? 1 : 0));
   const crown = rows.filter(r => r.level > 0).length > 1 && rows.filter(r => r.level === rows[0].level).length === 1;
+  return { rows, mine, crown };
+}
+// a compact line on the points receipt: "Ranglijst  👑 Dennis 61 · Opa (jij) 15"
+function renderReceiptRank() {
+  const box = $('rcRank'); if (!box) return;
+  const r = rankRows();
+  if (!r) { box.hidden = true; return; }
+  box.replaceChildren();
+  const label = document.createElement('span'); label.className = 'rk-label'; label.textContent = 'Ranglijst'; box.appendChild(label);
+  r.rows.slice(0, 4).forEach((x, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'rk' + (x.me ? ' me' : '');
+    chip.textContent = `${i === 0 && r.crown ? '👑 ' : ''}${x.me && x.name === 'Jij' ? 'Jij' : x.name} ${x.level || '?'}`;
+    box.appendChild(chip);
+  });
+  box.hidden = false;
+}
+function renderRanking() {
+  if (RC.open) renderReceiptRank();
+  const box = $('homeRank'); if (!box) return;
+  const ranked = rankRows();
+  if (!ranked) { box.hidden = true; return; }
+  const { rows, mine, crown } = ranked;
   const list = $('rankList'); list.replaceChildren();
   rows.slice(0, 6).forEach((r, i) => {
     const li = document.createElement('li');
