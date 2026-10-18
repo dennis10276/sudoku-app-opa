@@ -79,7 +79,7 @@ test('hints give no points; after losing a level twice it may be skipped', () =>
 
 test('the ranking shows the family by level, one person per name, test devices left out', async () => {
   const A = 'a'.repeat(32), B = 'b'.repeat(32), D = 'd'.repeat(32);
-  const sud = mode => ({ x: { app: 'sudoku', detail: { mode } } });
+  const sud = mode => ({ x: { app: 'sudoku', detail: { mode, build: 'sudoku-14' } } });
   const remote = url => url.includes('/players.json')
     ? { [A]: { name: 'Dennis' }, [B]: { name: 'dennis ' }, [D]: { name: 'DennisTEST' } }
     : url.includes(A) ? sud('L20|21') : url.includes(B) ? sud('D|25') : url.includes(D) ? sud('L900|900') : null;
@@ -118,11 +118,11 @@ test('rivals stay close to opa, never go back and are shown like everyone else',
   assert.equal(a.nodes.get('homeRank').hidden, false);
 });
 
-test('on opa\'s phone he is called Aad, starts at level 10, and the family is always on the receipt line', async () => {
+test('on opa\'s phone he is called Aad, and the family is always on the receipt line', async () => {
   const C = 'c'.repeat(32);
   let a;
   const remote = url => url.includes('/players.json') ? { [a.game.deviceId]: { name: 'OPa' }, [C]: { name: 'Dennis' } }
-    : url.includes(C) ? { x: { app: 'sudoku', detail: { mode: 'L90|90' } } } : null;
+    : url.includes(C) ? { x: { app: 'sudoku', detail: { mode: 'L90|90', build: 'sudoku-14' } } } : null;
   a = app(remote);
   a.game.P.level = 5; a.game.show('Home');
   await new Promise(r => setTimeout(r, 20));
@@ -131,9 +131,8 @@ test('on opa\'s phone he is called Aad, starts at level 10, and the family is al
   a.game.renderReceiptRank();
   const chips = a.nodes.get('rcRank').children.slice(1).map(c => c.textContent);
   assert.ok(chips.some(c => /Dennis 90$/.test(c)), chips.join(' | '));
-  assert.ok(chips.some(c => /Aad 10$/.test(c)), chips.join(' | '));
-  assert.equal(a.game.P.level, 10);
-  assert.equal(a.nodes.get('homeLevel').textContent, 10);
+  assert.ok(chips.some(c => /Aad 5$/.test(c)), chips.join(' | '));
+  assert.equal(a.game.P.level, 5);
   assert.ok(chips.length <= 4);
 });
 
@@ -141,7 +140,7 @@ test('on someone else\'s device the rivals sit around opa\'s level, not around m
   const A = 'a'.repeat(32);
   let a;
   const remote = url => url.includes('/players.json') ? { [a.game.deviceId]: { name: 'Dennis' }, [A]: { name: 'Opa' } }
-    : url.includes(A) ? { x: { app: 'sudoku', detail: { mode: 'L30|30' } } } : null;
+    : url.includes(A) ? { x: { app: 'sudoku', detail: { mode: 'L30|30', build: 'sudoku-14' } } } : null;
   a = app(remote);
   a.game.P.level = 300; a.game.show('Home');
   await new Promise(r => setTimeout(r, 20)); a.game.show('Home');
@@ -179,4 +178,39 @@ test('the transfer code is short and brings level, stars, dailies, settings and 
   assert.equal(d.done[d1].stars, 3); assert.equal(d.done[d0].stars, 2);
   assert.equal(d.S.theme, 'donker'); assert.equal(d.S.sound, false); assert.equal(d.S.autoCheck, true); assert.equal(d.S.v, 2);
   assert.match(String(d.key || ''), /^([a-f0-9]{32})?$/);
+});
+
+test('levels reported before the new level list are ignored in the ranking', async () => {
+  const A = 'a'.repeat(32), B = 'b'.repeat(32);
+  const remote = url => url.includes('/players.json') ? { [A]: { name: 'Dennis' }, [B]: { name: 'Opa' } }
+    : url.includes(A) ? { x: { app: 'sudoku', detail: { mode: 'L13|13', build: 'sudoku-13' } }, y: { app: 'sudoku', detail: { mode: 'L2|3', build: 'sudoku-14' } } }
+    : url.includes(B) ? { x: { app: 'sudoku', detail: { mode: 'L40|40', build: 'sudoku-12' } } } : null;
+  const a = app(remote);
+  a.game.show('Home');
+  await new Promise(r => setTimeout(r, 20));
+  const rows = a.nodes.get('rankList').children.map(li => li.children.map(c => c.textContent).join(' '));
+  assert.ok(rows.some(r => r.endsWith('Dennis level 3')), rows.join(' | '));
+  assert.ok(rows.some(r => r.endsWith('Opa level volgt')), rows.join(' | '));
+});
+
+test('a code from before the new level list is refused', async () => {
+  const a = app(() => null);
+  await assert.rejects(a.game.unpackProgress('2X5X0X0X0X0XX' + 'X1000'), /old/);
+  await assert.rejects(a.game.unpackProgress('jeyJ2IjoxfQ'), /old/);
+});
+
+test('the new level list sends everyone back to level 1 once; daily challenges and settings stay', () => {
+  const before = {
+    'sudoku.progress': JSON.stringify({ level: 13, best: { 1: { s: 900, t: 3 } }, total: 15400, fails: {}, wins: 3, bestWins: 6, played: 15 }),
+    'sudoku.dailyDone': JSON.stringify({ '2026-10-10': { time: 300, score: 2000, stars: 3 } }),
+    'sudoku.settings': JSON.stringify({ theme: 'donker', v: 2 }),
+    'sudoku.rivals': JSON.stringify({ Joop: 20 }),
+  };
+  const a = app(() => null, before);
+  assert.equal(a.game.P.level, 1); assert.equal(a.game.P.total, 0); assert.deepEqual(Object.keys(a.game.P.best), []);
+  assert.equal(a.game.dailyDone['2026-10-10'].stars, 3);
+  assert.equal(a.game.S.theme, 'donker');
+  // once: progress made after the reset stays
+  const later = app(() => null, { 'sudoku.levelsEpoch': '2', 'sudoku.progress': JSON.stringify({ level: 4, best: {}, total: 900 }) });
+  assert.equal(later.game.P.level, 4);
 });

@@ -182,6 +182,9 @@ jsQR 1.4.0 van Cosmo Wolfe (Apache-licentie 2.0), verkleind.
 
 ## Ranglijst
 
-Opa begint op minstens level 10: zodra de app ziet dat het apparaat van "Opa" is, gaat een lager
-level naar 10. De vier medespelers (Joop, Marianne, Frits, Lies) bewegen alleen rond opa's level,
-ook op andere apparaten; zolang opa's level onbekend is, staan ze niet in de lijst.
+Iedereen begint opnieuw bij level 1 sinds de nieuwe levelreeks (build `sudoku-14`, `LEVELS_EPOCH = 2`): bij de
+eerste start gaan level, punten, sterren per level en een onafgemaakte levelpuzzel terug naar nul; dagelijkse
+uitdagingen en instellingen blijven. De ranglijst en het dashboard tellen alleen levels die met build 14 of nieuwer
+gemeld zijn, en overzetcodes van vóór de nieuwe levels worden geweigerd. De vier medespelers (Joop, Marianne,
+Frits, Lies) bewegen alleen rond opa's level, ook op andere apparaten; zolang opa's level onbekend is, staan ze niet
+in de lijst.

@@ -84,6 +84,13 @@ let paused = false;
 let screen = 'Home';
 let returnTo = 'Home';
 
+// New level list (easiest left out, pairs from 1001): everyone starts again at level 1. Points, stars per level and
+// the unfinished level puzzle go too; daily challenges and settings stay. Runs once per device.
+const LEVELS_EPOCH = 2, EPOCH_KEY = 'sudoku.levelsEpoch';
+if ((load(EPOCH_KEY, 1) || 1) < LEVELS_EPOCH) {
+  store(LS.prog, null); store(LS.main, null); store('sudoku.rivals', {}); store('sudoku.ranking', null);
+  store(EPOCH_KEY, LEVELS_EPOCH);
+}
 const P = Object.assign({ level: 1, best: {}, total: 0, fails: {}, wins: 0, bestWins: 0, played: 0 }, load(LS.prog, {}));
 const saveProgress = () => store(LS.prog, P);
 const dailyDone = load(LS.done, {});
@@ -290,7 +297,7 @@ function trackingDetails() {
   if (!G.playId) G.playId = playTracking?.newRound();
   // mode tells the family overview which level is being played and how far opa has unlocked: "L37|38"
   // (a daily challenge is "D|38", an old puzzle "O|38").
-  return { round: G.playId, build: 'sudoku-13', level: G.level, daily: !!G.daily,
+  return { round: G.playId, build: 'sudoku-14', level: G.level, daily: !!G.daily,
     mode: `${G.daily ? 'D' : G.n ? 'L' + G.n : 'O'}|${P.level}`,
     progress: G.val.reduce((n, v, i) => n + (!G.puz[i] && v === G.sol[i] ? 1 : 0), 0),
     total: G.puz.filter(v => !v).length, score: G.score, gameSeconds: G.time,
@@ -943,10 +950,12 @@ $('homeDaily').addEventListener('click', () => { sound('tap'); calSel = todayKey
    Everyone's Sudoku app reports "L<played>|<unlocked>" to the family database. Devices with the same
    name are one person (on an iPhone each home-screen app has its own code). Names come from the dashboard. */
 const RANK_KEY = 'sudoku.ranking';
-const OPA_START = 10;
 const rank = { rows: load(RANK_KEY, null), at: 0, busy: false };
 const rankBase = () => String((window.SUDOKU_TRACKING || {}).databaseUrl || '').replace(/\/$/, '');
 const normName = s => typeof s === 'string' ? s.trim().replace(/\s+/g, ' ').toLowerCase() : '';
+// levels reported before the new level list (build sudoku-13 and older) mean other puzzles: ignored
+const FIRST_NEW_BUILD = 14;
+const buildNo = b => { const m = typeof b === 'string' && /^sudoku-(\d+)$/.exec(b); return m ? Number(m[1]) : 0; };
 const levelFromMode = m => { const x = typeof m === 'string' && /^(?:L\d{1,5}|D|O)\|(\d{1,5})$/.exec(m); return x ? Number(x[1]) : 0; };
 async function refreshRanking(force) {
   const base = rankBase();
@@ -964,7 +973,10 @@ async function refreshRanking(force) {
     await Promise.all([...people.values()].flatMap(person => person.keys.map(async key => {
       const q = new URLSearchParams({ orderBy: '"start"', limitToLast: '40' });
       const recs = await (await fetch(`${base}/sessions/${key}.json?${q}`)).json();
-      for (const r of Object.values(recs || {})) if (r && r.app === 'sudoku') { person.plays = true; person.level = Math.max(person.level, levelFromMode(r.detail && r.detail.mode)); }
+      for (const r of Object.values(recs || {})) if (r && r.app === 'sudoku') {
+        person.plays = true;
+        if (buildNo(r.detail && r.detail.build) >= FIRST_NEW_BUILD) person.level = Math.max(person.level, levelFromMode(r.detail && r.detail.mode));
+      }
     })));
     const me = playTracking?.deviceId;
     // people who play Sudoku but haven't reported a level yet (older app version) still appear, as "level volgt"
@@ -974,12 +986,6 @@ async function refreshRanking(force) {
       return { name, level: p.level, me: !!me && p.keys.includes(me) };
     });
     store(RANK_KEY, rank.rows);
-    // opa starts at level 10: the first levels are too easy for him
-    const mine = rank.rows.find(r => r.me);
-    if (mine && normName(mine.name) === 'opa' && P.level < OPA_START) {
-      P.level = OPA_START; saveProgress();
-      if (typeof renderHome === 'function') renderHome();
-    }
   } catch (e) { /* offline: keep showing the last known ranking */ }
   finally { rank.busy = false; renderRanking(); }
 }
@@ -991,7 +997,7 @@ const RIVALS = [
 ];
 const RIVALS_KEY = 'sudoku.rivals';
 function rivalLevels(myLevel) {
-  const seen = load(RIVALS_KEY, {});
+  const seen = load(RIVALS_KEY, {}) || {};
   const day = dateKey(new Date());
   const out = RIVALS.map((r, i) => {
     const wobble = (hashStr(day + r.name) % 5) - 2;                     // -2 … +2, changes once a day
@@ -1282,7 +1288,8 @@ async function pipe(bytes, stream) { return new Uint8Array(await new Response(ne
    "2" + fields joined by "X" (all other characters are 0-9 a-z), or "3" + the same text deflated in base64url.
    Fields: device key (hex) · level · total · wins · best streak · played · stars per level ("0"–"3" from level 1)
    · daily challenges of the last 120 days (3-char day number + stars) · settings. Scores per level are not
-   carried over (they only matter when replaying a level). Older "j"/"z" codes (full JSON) still work. */
+   carried over (they only matter when replaying a level). The last field is the level-list epoch: codes from
+   before the new level list (other epoch, or the older "j"/"z" full-JSON codes) are refused. */
 const B36 = n => Math.max(0, Math.round(Number(n) || 0)).toString(36);
 const DAY0 = Date.UTC(2024, 0, 1), DAY = 86400000;
 const dayNum = k => { const [y, m, d] = k.split('-').map(Number); return Math.round((Date.UTC(y, m - 1, d) - DAY0) / DAY); };
@@ -1300,7 +1307,7 @@ function progressText() {
     .map(([n, d]) => n.toString(36).padStart(3, '0') + Math.min(3, Math.max(0, (d && d.stars) || 0))).join('');
   const bits = SET_BOOLS.reduce((m, k, i) => m | (S[k] ? 1 << i : 0), 0);
   const set = B36(bits) + Object.keys(SET_OPTS).map(k => Math.max(0, SET_OPTS[k].indexOf(S[k]))).join('');
-  return [/^[a-f0-9]{32}$/.test(key) ? key : '', B36(P.level), B36(P.total), B36(P.wins), B36(P.bestWins), B36(P.played), stars, daily, set].join('X');
+  return [/^[a-f0-9]{32}$/.test(key) ? key : '', B36(P.level), B36(P.total), B36(P.wins), B36(P.bestWins), B36(P.played), stars, daily, set, String(LEVELS_EPOCH)].join('X');
 }
 async function packProgress() {
   const text = progressText();
@@ -1313,6 +1320,7 @@ async function packProgress() {
 function parseProgressText(text) {
   const f = text.split('X');
   if (f.length < 9) throw new Error('bad');
+  if (Number(f[9]) !== LEVELS_EPOCH) throw new Error('old');   // made before the new level list
   const num = x => { const n = parseInt(x || '0', 36); return Number.isFinite(n) ? n : 0; };
   const best = {};
   [...f[6]].forEach((c, i) => { if (c !== '0') best[i + 1] = { s: 0, t: Math.min(3, Number(c) || 0) }; });
@@ -1330,11 +1338,7 @@ async function unpackProgress(code) {
   let d;
   if (code[0] === '2') d = parseProgressText(code.slice(1));
   else if (code[0] === '3') d = parseProgressText(new TextDecoder().decode(await pipe(unb64url(code.slice(1)), new DecompressionStream('deflate-raw'))));
-  else {
-    let bytes = unb64url(code.slice(1));
-    if (code[0] === 'z') bytes = await pipe(bytes, new DecompressionStream('deflate-raw'));
-    d = JSON.parse(new TextDecoder().decode(bytes));
-  }
+  else throw new Error('old');                                  // full-JSON codes are from before the new level list
   if (!d || d.v !== 1 || !d.P || !(d.P.level >= 1) || typeof d.P.best !== 'object') throw new Error('bad');
   return d;
 }
@@ -1469,7 +1473,7 @@ async function importFromLink() {
 }
 async function importCode(code, fromLink) {
   let d;
-  try { d = await unpackProgress(code); } catch (e) { toast('Deze overzet-link werkt niet. Maak een nieuwe.', 4000); return; }
+  try { d = await unpackProgress(code); } catch (e) { toast(e && e.message === 'old' ? 'Deze code is van vóór de nieuwe levels. Maak op het andere apparaat een nieuwe code.' : 'Deze overzet-link werkt niet. Maak een nieuwe.', 4500); return; }
   const lower = d.P.level < P.level;
   sheet(`<h2>Voortgang overzetten?</h2>
     <p>Hier verder gaan op <b>level ${d.P.level}</b> met ${fmtNum(d.P.total)} punten.${lower ? ` Let op: dit apparaat staat nu verder, op level ${P.level}.` : ''}</p>

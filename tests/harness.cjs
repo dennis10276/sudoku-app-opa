@@ -4,9 +4,9 @@ const path = require('node:path');
 const { webcrypto } = require('node:crypto');
 
 // Run the actual game and tracker together; the DOM only supplies rendering surfaces.
-function app(remote = () => null) {
+function app(remote = () => null, stored = {}) {
   let now = Date.parse('2026-10-11T10:00:00Z');
-  const nodes = new Map(), intervals = [], saved = new Map(), records = new Map();
+  const nodes = new Map(), intervals = [], saved = new Map(Object.entries(stored)), records = new Map();
   function node() {
     return {
       children: [], dataset: {}, hidden: true, textContent: '', className: '', listeners: {},
