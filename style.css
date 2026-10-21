@@ -201,6 +201,21 @@ a.btn { text-decoration: none; box-sizing: border-box; }
 .stat span { display: block; font-size: 15px; color: var(--muted); }
 .stat b { display: block; font-size: 26px; margin-top: 4px; font-variant-numeric: tabular-nums; }
 .stats-body .btn { margin-top: 26px; }
+/* the ranking screen */
+.lb { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.lb li { position: relative; display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 18px; background: var(--bg2); overflow: hidden; }
+.lb li::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: var(--w, 0%); background: var(--accent-soft); z-index: 0; }
+.lb li > * { position: relative; z-index: 1; }
+.lb .pos { width: 40px; text-align: center; font-size: 26px; font-weight: 900; color: var(--muted); }
+.lb .nm { flex: 1; font-size: 24px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lb .lb-lv { text-align: right; line-height: 1; }
+.lb .lb-lv small { display: block; font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.lb .lb-lv b { font-size: 30px; font-weight: 900; color: var(--user); font-variant-numeric: tabular-nums; }
+.lb li.me { background: var(--gold-soft); box-shadow: inset 0 0 0 3px var(--gold); }
+.lb li.me::before { background: rgba(245, 179, 1, .22); }
+.lb li.top1 .pos, .lb li.top2 .pos, .lb li.top3 .pos { font-size: 30px; }
+.lb-note { margin: 14px 4px 0; font-size: 19px; font-weight: 800; text-align: center; color: var(--ink); }
+.my-stats h3 { margin-top: 26px; }
 
 /* ---------- game ---------- */
 #scrGame {
@@ -582,6 +597,10 @@ body.dark .stat.gold b { color: var(--gold); }
 .rc-lt { font-size: 19px; font-weight: 800; line-height: 1.1; white-space: nowrap; min-width: 0; }
 .rc-lt small { display: block; font-size: 14.5px; font-weight: 700; color: var(--rmuted); margin-top: 2px; }
 .rc-pts { font-size: 24px; font-weight: 900; color: #2f6fdc; font-variant-numeric: tabular-nums; }
+@media (max-width: 380px) {                       /* small phones: long point lines may wrap instead of running into the points */
+  .rc-lt { white-space: normal; font-size: 17.5px; }
+  .rc-pts { font-size: 21px; }
+}
 .rc-line.bonus .rc-pts { color: var(--rgold-ink); }
 .rc-line.bonus .rc-ic { background: var(--rgold); border-color: #c98a00; color: #5a3a00; }
 .rc-line.missed { opacity: .55; }
@@ -601,10 +620,17 @@ body.dark .stat.gold b { color: var(--gold); }
 .rc-track .medal { box-shadow: 0 0 0 3px var(--night); }
 .rc-togo { margin-top: 6px; font-size: 17px; font-weight: 700; color: #c6d6f7; }
 .rc-togo b { color: #fff; }
-.rc-rank { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
-.rc-rank .rk-label { font-size: 18px; margin-right: 0; }
-.rc-rank .rk { font-size: 15px; font-weight: 800; padding: 3px 9px; white-space: nowrap; border-radius: 999px; background: rgba(255, 255, 255, .12); color: #fff; }
-.rc-rank .rk.me { background: var(--rgold); color: #3a2600; }
+.rc-rank { margin-top: 12px; background: rgba(255, 255, 255, .08); border-radius: 16px; padding: 8px 10px 6px; }
+.rc-lb-head { margin: 2px 4px 6px; font-size: 17px; font-weight: 800; color: #dce7fb; }
+.rc-lb-head.cheer { color: var(--rgold); font-size: 19px; }
+.rc-lb { list-style: none; margin: 0; padding: 0; }
+.rc-lb li { display: flex; align-items: center; gap: 10px; padding: 4px 8px; font-size: 19px; font-weight: 800; border-radius: 10px; }
+.rc-lb .pos { width: 28px; text-align: center; color: #9fb6e6; }
+.rc-lb .nm { flex: 1; }
+.rc-lb .lb-lv { font-variant-numeric: tabular-nums; }
+.rc-lb li.me { background: var(--rgold); color: #3a2600; }
+.rc-lb li.me .pos { color: #3a2600; }
+.rc-lb li.me.up .nm::after { content: " ▲"; color: #1f8a3a; font-size: .8em; }
 .rc-cta { margin-top: auto; padding-top: 10px; opacity: 0; transform: translateY(10px); transition: all .35s; pointer-events: none; }
 .rc-cta.in { opacity: 1; transform: none; pointer-events: auto; }
 .rc-next { width: 100%; border: 0; border-radius: 18px; padding: 14px; font-family: inherit; font-size: 24px; font-weight: 900; color: var(--night); background: var(--rgold); box-shadow: 0 6px 0 #c98a00, 0 14px 24px rgba(0,0,0,.3); }

@@ -181,6 +181,12 @@ jsQR 1.4.0 van Cosmo Wolfe (Apache-licentie 2.0), verkleind.
 
 ## Ranglijst
 
+Het tabblad **Ranglijst** (vroeger Statistieken) toont iedereen groot onder elkaar: medailles voor de eerste drie,
+je eigen rij goud omrand, een balkje naar verhouding van het level, en "Nog 2 levels en je haalt Joop in!".
+Je eigen cijfers staan eronder bij "Jouw spel". Na elk level staat de ranglijst ook op het puntenbonnetje (dat
+scrolt er vanzelf naartoe); heb je iemand ingehaald, dan staat er "🎉 Je bent Frits voorbij!" (dit apparaat
+onthoudt wie er de vorige keer boven je stond, `sudoku.rankSeen`).
+
 Iedereen begint opnieuw bij level 1 sinds de nieuwe levelreeks (build `sudoku-15`, `LEVELS_EPOCH = 3`): bij de
 eerste start gaan level, punten, sterren per level en een onafgemaakte levelpuzzel terug naar nul; dagelijkse
 uitdagingen en instellingen blijven. De ranglijst en het dashboard tellen alleen levels die met build 15 of nieuwer

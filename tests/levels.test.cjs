@@ -139,11 +139,46 @@ test('on opa\'s phone he is called Aad, and the family is always on the receipt 
   const names = a.nodes.get('rankList').children.map(li => li.children[1].textContent);
   assert.ok(names.includes('Aad')); assert.ok(names.includes('Dennis'));
   a.game.renderReceiptRank();
-  const chips = a.nodes.get('rcRank').children.slice(1).map(c => c.textContent);
-  assert.ok(chips.some(c => /Dennis 90$/.test(c)), chips.join(' | '));
-  assert.ok(chips.some(c => /Aad 5$/.test(c)), chips.join(' | '));
+  const [head, list] = a.nodes.get('rcRank').children;
+  const rows = list.children.map(li => li.children.map(c => c.textContent).join(' '));
+  assert.ok(rows.some(r => / Dennis 90$/.test(r)), rows.join(' | '));
+  assert.ok(rows.some(r => / Aad 5$/.test(r)), rows.join(' | '));
   assert.equal(a.game.P.level, 5);
-  assert.ok(chips.length <= 4);
+  assert.ok(rows.length <= 6);
+  assert.match(head.textContent, /^🏆 Nog \d+ levels? en je haalt \S+ in!$/);
+});
+
+test('the ranking tab shows everyone, biggest level first, with medals for the top three', async () => {
+  const C = 'c'.repeat(32);
+  let a;
+  const remote = url => url.includes('/players.json') ? { [a.game.deviceId]: { name: 'Opa' }, [C]: { name: 'Dennis' } }
+    : url.includes(C) ? { x: { app: 'sudoku', detail: { mode: 'L90|90', build: 'sudoku-15' } } } : null;
+  a = app(remote);
+  a.game.P.level = 20; a.game.show('Stats');
+  await new Promise(r => setTimeout(r, 20));
+  const [list, note] = a.nodes.get('sBody').children;
+  const rows = list.children.map(li => li.children.slice(0, 2).map(c => c.textContent).join(' ') + ' ' + li.children[2].children[1].textContent);
+  assert.equal(rows.length, 6, rows.join(' | '));
+  assert.equal(rows[0], '🥇 Dennis 90');
+  assert.ok(rows.some(r => / Aad 20$/.test(r)));
+  const levels = rows.map(r => Number(r.split(' ').pop()));
+  assert.deepEqual(levels, [...levels].sort((x, y) => y - x));
+  assert.match(note.textContent, /haalt|bovenaan|gelijk/);
+});
+
+test('after a level the receipt cheers when you passed someone', async () => {
+  const C = 'c'.repeat(32);
+  let a;
+  const remote = url => url.includes('/players.json') ? { [a.game.deviceId]: { name: 'Dennis' }, [C]: { name: 'Opa' } }
+    : url.includes(C) ? { x: { app: 'sudoku', detail: { mode: 'L10|10', build: 'sudoku-15' } } } : null;
+  a = app(remote);
+  a.game.P.level = 2; a.game.show('Home');
+  await new Promise(r => setTimeout(r, 20));
+  a.game.RC.passed = null; a.game.renderReceiptRank();          // Opa (10) is above me
+  a.game.P.level = 60;
+  a.game.RC.passed = null; a.game.renderReceiptRank();          // a new receipt: now I am above Opa
+  const head = a.nodes.get('rcRank').children[0].textContent;
+  assert.match(head, /^🎉 Je bent .*Opa.* voorbij!$/);
 });
 
 test('on someone else\'s device the rivals sit around opa\'s level, not around mine', async () => {

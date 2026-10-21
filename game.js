@@ -588,7 +588,7 @@ function rcWhy(g, R) {
 }
 function showReceipt(g, R) {
   closeSheet();
-  RC.open = true; RC.done = 0; RC.timers.forEach(clearTimeout); RC.timers = [];
+  RC.open = true; RC.done = 0; RC.timers.forEach(clearTimeout); RC.timers = []; RC.passed = null;
   const rc = $('receipt');
   // header
   const mini = $('rcMini'); mini.className = 'rc-mini'; mini.innerHTML = '';
@@ -651,7 +651,12 @@ function showReceipt(g, R) {
     if (fast) $('rcGrand').textContent = fmtNum(P.total);
     else { countUp($('rcGrand'), R.grandBefore, P.total, 1100); burstAt($('rcTot'), R.medal ? 140 : 70, R.medal ? 1.4 : 1.1); sound('win'); }
   });
-  step(t + 1200, () => $('rcCta').classList.add('in'));
+  step(t + 1200, fast => {
+    $('rcCta').classList.add('in');
+    // the ranking and the button sit below the points: scroll down to them so they are seen
+    const rc = $('receipt'), cta = $('rcCta');
+    if (rc.scrollHeight > rc.clientHeight + 4 && cta.scrollIntoView) cta.scrollIntoView({ behavior: fast ? 'auto' : 'smooth', block: 'end' });
+  });
   RC.steps.forEach(s => rcLater(() => { if (!s.ran) { s.ran = true; s.fn(false); } }, s.at));
   burstAt(null, 90, 1.2);
 }
@@ -888,7 +893,7 @@ function show(name) {
   if (name === 'Home') renderHome();
   if (name === 'Levels') renderLevels();
   if (name === 'Daily') renderDaily();
-  if (name === 'Stats') renderStats();
+  if (name === 'Stats') { renderStats(); refreshRanking(false); }
   if (name === 'Game') relayout();
 }
 function openGame() {
@@ -1032,50 +1037,81 @@ function shownName(x) {
   if (normName(x.name) === 'opa') return 'Aad';
   return x.name === 'Jij' ? 'Jij' : x.name + ' (jij)';
 }
-// a compact line on the points receipt: "🏆 2. Dennis 61 · 3. Marianne 16 · 4. Aad 15"
+// the line under a ranking: who is next to catch, or who is right behind
+function rankNote(r) {
+  const { rows, mine } = r;
+  const known = rows.filter(x => x.me || x.level > 0);
+  const ahead = known.filter(x => x.level > mine.level).sort((a, b) => a.level - b.level)[0];
+  const behind = known.filter(x => !x.me && x.level < mine.level).sort((a, b) => b.level - a.level)[0];
+  const lv = n => `${n} ${n === 1 ? 'level' : 'levels'}`;
+  return ahead ? `Nog ${lv(ahead.level - mine.level)} en je haalt ${ahead.name} in!`
+    : behind ? `Je staat bovenaan! ${behind.name} zit ${lv(mine.level - behind.level)} achter je.`
+    : known.length > 1 ? 'Jullie staan gelijk!' : 'Het level van de anderen verschijnt zodra zij weer Sudoku spelen.';
+}
+// position marker: medals for the first three (once there is a level), then numbers
+const rankPos = (r, i, x) => (x.level > 0 && i < 3 ? ['🥇', '🥈', '🥉'][i] : String(i + 1));
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+const andList = xs => xs.length > 1 ? xs.slice(0, -1).join(', ') + ' en ' + xs[xs.length - 1] : xs.join('');
+// Who did I pass since the last finished level? Remembered on this device as the names that were above me.
+const RANK_SEEN = 'sudoku.rankSeen';
+function passedSinceLast(r) {
+  const above = r.rows.slice(0, r.rows.indexOf(r.mine)).map(x => normName(x.name));
+  const before = load(RANK_SEEN, null);
+  store(RANK_SEEN, above);
+  if (!Array.isArray(before)) return [];
+  const nowBelow = new Set(r.rows.slice(r.rows.indexOf(r.mine) + 1).map(x => normName(x.name)));
+  return r.rows.filter(x => before.includes(normName(x.name)) && nowBelow.has(normName(x.name))).map(x => x.name);
+}
+
+// the ranking on the points receipt: a short list with me in it, and a cheer when I passed someone
 function renderReceiptRank() {
   const box = $('rcRank'); if (!box) return;
   const r = rankRows();
   if (!r) { box.hidden = true; return; }
+  if (RC.passed == null) RC.passed = passedSinceLast(r);
   box.replaceChildren();
-  const label = document.createElement('span'); label.className = 'rk-label'; label.textContent = '🏆'; box.appendChild(label);
-  // opa himself, the real family members always, then who is just ahead and just behind (3 places, 4 at most)
-  const at = r.rows.indexOf(r.mine), pick = new Set([at]);
-  r.rows.forEach((x, i) => { if (!x.rival && !x.me) pick.add(i); });
-  for (const i of [at - 1, at + 1]) if (pick.size < 3 && i >= 0 && i < r.rows.length) pick.add(i);
-  [...pick].sort((a, b) => a - b).slice(0, 4).forEach(i => {
-    const x = r.rows[i], chip = document.createElement('span');
-    chip.className = 'rk' + (x.me ? ' me' : '');
-    chip.textContent = `${i === 0 && r.crown ? '👑' : i + 1 + '.'} ${x.me ? shownName(x).replace(' (jij)', '') : x.name} ${x.level || '?'}`;
-    box.appendChild(chip);
+  const at = r.rows.indexOf(r.mine);
+  // everyone when it fits; otherwise the real family, me, and who is just ahead and just behind
+  let show = r.rows.map((x, i) => i);
+  if (show.length > 6) {
+    const pick = new Set([at, at - 1, at + 1, at - 2].filter(i => i >= 0 && i < r.rows.length));
+    r.rows.forEach((x, i) => { if (!x.rival && pick.size < 6) pick.add(i); });
+    show = [...pick].sort((a, b) => a - b);
+  }
+  const head = el('p', 'rc-lb-head' + (RC.passed.length ? ' cheer' : ''),
+    RC.passed.length ? `🎉 Je bent ${andList(RC.passed)} voorbij!` : '🏆 ' + rankNote(r));
+  const list = el('ol', 'rc-lb');
+  show.forEach(i => {
+    const x = r.rows[i];
+    const li = el('li', x.me ? 'me' + (RC.passed.length ? ' up' : '') : '');
+    li.append(el('span', 'pos', rankPos(r, i, x)), el('span', 'nm', shownName(x).replace(' (jij)', '')), el('span', 'lb-lv', x.level ? String(x.level) : '–'));
+    list.appendChild(li);
   });
+  box.append(head, list);
   box.hidden = false;
 }
+
+// the ranking card on the start screen
 function renderRanking() {
   if (RC.open) renderReceiptRank();
+  if (screen === 'Stats') renderStats();
   const box = $('homeRank'); if (!box) return;
   const ranked = rankRows();
   if (!ranked) { box.hidden = true; return; }
-  const { rows, mine, crown } = ranked;
+  const { rows, crown } = ranked;
   const list = $('rankList'); list.replaceChildren();
   // everyone real always stays on the list; rivals fill it up to six places
   const keep = new Set(rows.map((r, i) => (r.rival ? -1 : i)).filter(i => i >= 0));
   rows.forEach((r, i) => { if (keep.size < 6 && r.rival) keep.add(i); });
   rows.forEach((r, i) => {
     if (!keep.has(i)) return;
-    const li = document.createElement('li');
-    li.className = (r.me ? 'me ' : '') + (i === 0 ? 'first' : '');
-    const pos = document.createElement('span'); pos.className = 'pos'; pos.textContent = i === 0 && crown ? '👑' : String(i + 1);
-    const name = document.createElement('span'); name.className = 'nm'; name.textContent = shownName(r);
-    const lv = document.createElement('span'); lv.className = 'rk-lv' + (r.level ? '' : ' unknown'); lv.textContent = r.level ? `level ${r.level}` : 'level volgt';
-    li.append(pos, name, lv); list.appendChild(li);
+    const li = el('li', (r.me ? 'me ' : '') + (i === 0 ? 'first' : ''));
+    li.append(el('span', 'pos', i === 0 && crown ? '👑' : String(i + 1)), el('span', 'nm', shownName(r)),
+      el('span', 'rk-lv' + (r.level ? '' : ' unknown'), r.level ? `level ${r.level}` : 'level volgt'));
+    list.appendChild(li);
   });
-  const known = rows.filter(r => r.me || r.level > 0);
-  const ahead = known.filter(r => r.level > mine.level).sort((a, b) => a.level - b.level)[0];
-  const behind = known.filter(r => !r.me && r.level < mine.level).sort((a, b) => b.level - a.level)[0];
-  $('rankNote').textContent = ahead ? `Nog ${ahead.level - mine.level} ${ahead.level - mine.level === 1 ? 'level' : 'levels'} en je haalt ${ahead.name} in!`
-    : behind ? `Je staat bovenaan! ${behind.name} zit ${mine.level - behind.level} ${mine.level - behind.level === 1 ? 'level' : 'levels'} achter je.`
-    : known.length > 1 ? 'Jullie staan gelijk!' : 'Het level van de anderen verschijnt zodra zij weer Sudoku spelen.';
+  $('rankNote').textContent = rankNote(ranked);
   box.hidden = false;
 }
 
@@ -1155,17 +1191,34 @@ $('dPlay').addEventListener('click', () => {
   newGame(P.level, k);
 });
 
-/* ---------- stats ---------- */
+/* ---------- ranking screen (the "Ranglijst" tab), with your own numbers below ---------- */
 function renderStats() {
+  const body = $('sBody');
+  body.replaceChildren();
+  const r = rankRows();
+  if (r) {
+    const top = Math.max(1, ...r.rows.map(x => x.level || 0));
+    const list = el('ol', 'lb');
+    r.rows.forEach((x, i) => {
+      const li = el('li', (x.me ? 'me' : '') + (i < 3 && x.level > 0 ? ' top' + (i + 1) : ''));
+      li.style.setProperty('--w', Math.round(100 * (x.level || 0) / top) + '%');
+      const lv = el('span', 'lb-lv'); lv.append(el('small', null, 'level'), el('b', null, x.level ? String(x.level) : '–'));
+      li.append(el('span', 'pos', rankPos(r, i, x)), el('span', 'nm', shownName(x)), lv);
+      list.appendChild(li);
+    });
+    body.append(list, el('p', 'lb-note', rankNote(r)));
+  } else {
+    body.append(el('p', 'lb-note', 'De ranglijst verschijnt zodra de anderen ook Sudoku spelen.'));
+  }
   const best = Object.values(P.best);
   const box = (label, val, cls = '') => `<div class="stat ${cls}"><span>${label}</span><b>${val}</b></div>`;
   const three = best.filter(b => b.t === 3).length;
-  $('sBody').innerHTML = `
-    <div class="stat-hero"><span>Totaalscore</span><b>${fmtNum(P.total)}</b></div>
-    <h3>Levels</h3>
-    <div class="stat-grid">${box('Huidig level', P.level)}${box('Uitgespeeld', best.length)}${box('Sterren', fmtNum(starsTotal()), 'gold')}${box('Medailles', medals(), 'gold')}</div>
-    <h3>Goed bezig</h3>
-    <div class="stat-grid">${box('Drie sterren', three)}${box('Gewonnen op rij', P.wins)}${box('Langste reeks', P.bestWins)}${box('Dagelijkse uitdagingen', Object.keys(dailyDone).length)}</div>`;
+  const mine = el('div', 'my-stats');
+  mine.innerHTML = `
+    <h3>Jouw spel</h3>
+    <div class="stat-grid">${box('Totaalscore', fmtNum(P.total))}${box('Huidig level', P.level)}${box('Sterren', fmtNum(starsTotal()), 'gold')}${box('Medailles', medals(), 'gold')}
+    ${box('Drie sterren', three)}${box('Gewonnen op rij', P.wins)}${box('Langste reeks', P.bestWins)}${box('Dagelijkse uitdagingen', Object.keys(dailyDone).length)}</div>`;
+  body.appendChild(mine);
 }
 
 /* ---------- game controls ---------- */
@@ -1535,6 +1588,6 @@ function boot() {
   }
 }
 // testing hook
-window.__sudoku = { packProgress, unpackProgress, transferCode, get deviceId() { return playTracking?.deviceId; }, get G() { return G; }, set G(v) { G = v; }, get sel() { return sel; }, select, input, hint, undo, erase, toggleNotes, newGame, playLevel, show, render, P, S, win, levelSheet, settingsSheet, dailyDone, finishReceipt, closeReceipt, renderReceiptRank, levelEntry, baseFor, LEVEL_COUNT, dailyEntry };
+window.__sudoku = { RC, packProgress, unpackProgress, transferCode, get deviceId() { return playTracking?.deviceId; }, get G() { return G; }, set G(v) { G = v; }, get sel() { return sel; }, select, input, hint, undo, erase, toggleNotes, newGame, playLevel, show, render, P, S, win, levelSheet, settingsSheet, dailyDone, finishReceipt, closeReceipt, renderReceiptRank, levelEntry, baseFor, LEVEL_COUNT, dailyEntry };
 boot();
 })();
