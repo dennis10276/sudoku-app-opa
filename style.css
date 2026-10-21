@@ -838,3 +838,15 @@ body.dark .stat.gold b { color: var(--gold); }
 .home-body.c1 .daily-card { padding-top: 10px; padding-bottom: 10px; }
 .home-body.c1 .dc-ic, .home-body.c1 .dc-ic svg { width: 44px; height: 44px; }
 .home-body.c1 .dc-ic b { top: 17px; font-size: 16px; }
+/* the level being played: big and gold at the top of the game */
+.game-top { min-height: 58px; }
+.game-top .title { line-height: 1; }
+.lvl-badge { display: inline-flex; align-items: baseline; gap: 7px; padding: 5px 16px 6px; border-radius: 16px; background: #fffdf6; color: #13213f; box-shadow: 0 0 0 3px var(--gold), 0 4px 12px rgba(0, 0, 0, .12); white-space: nowrap; }
+.lvl-badge small { font-size: 16px; font-weight: 800; color: #5f6b82; text-transform: uppercase; letter-spacing: .04em; }
+.lvl-badge b { font-size: 32px; font-weight: 900; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+body.dark .lvl-badge { background: #1f2733; color: #fff; }
+body.dark .lvl-badge small { color: #b9c4d6; }
+@media (orientation: landscape) and (max-height: 520px) { .lvl-badge { padding: 2px 12px; } .lvl-badge b { font-size: 24px; } }
+.lvl-badge.long { gap: 5px; padding: 5px 12px 6px; }
+.lvl-badge.long small { font-size: 13px; }
+.lvl-badge.long b { font-size: 25px; }

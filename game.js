@@ -235,7 +235,15 @@ function renderPad() {
 }
 let shownScore = 0;
 function renderInfo() {
-  $('gTitle').textContent = G.daily ? 'Uitdaging ' + DAY_FMT.format(keyDate(G.daily)).replace(/^\S+ /, '') : G.n ? `Level ${G.n}` : 'Oude puzzel';
+  // which level is being played: a big gold badge at the top, like the level tile on the start screen
+  const [tSmall, tBig] = G.daily ? ['Uitdaging', DAY_FMT.format(keyDate(G.daily)).replace(/^\S+ /, '').replace(/ (\S{3})\S*$/, ' $1')]
+    : G.n ? ['Level', String(G.n)] : ['Oude', 'puzzel'];
+  const tEl = $('gTitle');
+  if (tEl.dataset.k !== tSmall + tBig) {
+    tEl.dataset.k = tSmall + tBig;
+    tEl.innerHTML = `<span class="lvl-badge${tBig.length > 4 ? ' long' : ''}"><small>${tSmall}</small><b>${tBig}</b></span>`;
+    tEl.setAttribute('aria-label', `${tSmall} ${tBig}`);
+  }
   $('gMist').textContent = S.mistakeLimit ? `${G.mistakes}/3` : String(G.mistakes);
   $('gMistBox').classList.toggle('err', G.mistakes > 0);
   if (shownScore > G.score) shownScore = G.score;
