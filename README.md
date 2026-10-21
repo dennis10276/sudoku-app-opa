@@ -179,6 +179,17 @@ getoond op iPhone/iPad of in de app zelf. De service worker laat `.apk` met rust
 QR-codes: `qrcode.js` is qrcode-generator 1.4.4 van Kazuhiko Arase (MIT-licentie); `jsqr.js` is
 jsQR 1.4.0 van Cosmo Wolfe (Apache-licentie 2.0), verkleind.
 
+## Eén scherm, nooit scrollen
+
+Opa bedient de telefoon met één hand: niets hoeft te scrollen (getest op iPhone SE-formaat, 375 × 647 als
+beginscherm-app) en elk scherm heeft een terug- of sluitknop.
+- Elk venster heeft rechtsboven een grote ✕; Levels, Dagelijks en Ranglijst hebben linksboven "‹ Start".
+- Instellingen is één korte pagina met knoppen naar "Spel", "Markeren", "Spelregels", "Punten", "Overzetten" (elk met "‹ Terug").
+- Levels: 25 per pagina (5 × 5, vult het scherm) met ‹ › in plaats van een scrollende rij.
+- Spelregels in twee pagina's; Ranglijst met "Jouw cijfers" als knop.
+- Start en de lijsten passen zich aan (`fitHome`, `fitList`): eerst compacter, dan minder rijen (wie je moet inhalen blijft staan).
+- Het puntenbonnetje in twee stappen: eerst de punten, dan klappen de regels in en verschijnen totaal, ranglijst en knop.
+
 ## Ranglijst
 
 Het tabblad **Ranglijst** (vroeger Statistieken) toont iedereen groot onder elkaar: medailles voor de eerste drie,

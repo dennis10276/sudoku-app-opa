@@ -721,3 +721,120 @@ body.dark .stat.gold b { color: var(--gold); }
 .ld-foot { text-align: center; font-size: 15px; color: rgba(234,241,252,.6); margin: 4px 0 0; }
 
 @media (prefers-reduced-motion: reduce) { * { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
+
+/* ================= one screen, no scrolling (opa uses one hand) ================= */
+/* every window: a big ✕ in the corner */
+.sheet { position: relative; }
+.sheet-x { position: absolute; top: 10px; right: 12px; z-index: 2; width: 48px; height: 48px; border-radius: 50%; border: 0; background: var(--bg2); color: var(--ink); display: flex; align-items: center; justify-content: center; padding: 0; }
+.sheet-x svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; }
+.sheet-x:active { background: var(--accent-soft); }
+.sheet h2 { padding: 0 52px; }
+.sheet h2 small { font-size: 16px; color: var(--muted); font-weight: 700; margin-left: 4px; }
+.sheet .btns.two { flex-direction: row; }
+.sheet .btns.two .btn { flex: 1; }
+/* settings: tiles to the other pages */
+.set-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 10px; }
+.set-tile { min-height: 54px; border: 0; border-radius: 14px; background: var(--bg2); color: var(--accent); font: inherit; font-size: 18px; font-weight: 700; padding: 8px 10px; }
+.set-tile.wide { grid-column: 1 / -1; }
+.set-tile.danger { color: var(--err); }
+.set-tile:active { background: var(--accent-soft); }
+.set-group { margin-bottom: 10px; }
+.set-row { min-height: 54px; padding: 8px 16px; }
+.pts-table div { padding: 8px 0; font-size: 17px; }
+.pts-stars { font-size: 17px !important; margin-bottom: 8px !important; }
+.rules p { margin-bottom: 10px; }
+/* back to Start on the tab screens */
+.top .back { padding-left: 2px; }
+/* levels: page with ‹ › and 5×5 tiles that fill the space */
+.pager { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 14px 8px; width: 100%; max-width: 560px; margin: 0 auto; }
+.pager b { font-size: 20px; font-weight: 800; }
+.pg-btn { width: 56px; height: 48px; border: 0; border-radius: 14px; background: var(--bg2); color: var(--accent); display: flex; align-items: center; justify-content: center; }
+.pg-btn svg { width: 28px; height: 28px; }
+.pg-btn:disabled { opacity: .3; }
+.lv-body { overflow: hidden; display: flex; padding: 0 14px 12px; }
+.lv-grid { flex: 1; width: 100%; grid-template-rows: repeat(5, minmax(0, 1fr)); gap: 8px; align-content: stretch; }
+.lv { aspect-ratio: auto; min-height: 0; }
+.lv b { font-size: 22px; }
+/* daily: the calendar takes the room that is left */
+.daily-body { overflow: hidden; gap: 10px; padding: 4px 16px 12px; }
+.trophy-row { flex: none; padding: 8px 14px; }
+.trophy { width: 44px; height: 44px; }
+.trophy svg { width: 26px; height: 26px; }
+.cal { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 4px 8px 8px; }
+.cal-grid { flex: 1; min-height: 0; grid-auto-rows: minmax(0, 1fr); }
+.cal-grid button { aspect-ratio: auto; height: auto; min-height: 0; margin: 1px; border-radius: 12px; }
+.daily-pick { flex: none; }
+/* start and ranking screens: no scrollbars; lists are trimmed to fit (fitList) */
+.home-body, .stats-body { overflow: hidden; }
+.stats-body { display: flex; flex-direction: column; }
+.lb { gap: 6px; }
+.lb li { padding: 8px 14px; }
+.lb-note { margin-top: 10px; }
+.my-btn { flex: none; margin-top: 12px; min-height: 52px; }
+.sheet .stat-grid { margin-bottom: 6px; }
+/* QR codes and the camera stay small enough for the window */
+.qr { width: min(300px, 72vw, 36vh); }
+.scan { width: min(300px, 78vw, 34vh); }
+/* the receipt in two steps */
+#receipt { overflow: hidden; }
+#receipt .rc-prog { display: none; }
+#receipt.rc-b .rc-prog { display: block; }
+#receipt.rc-b #rcLines { display: none; }
+#receipt.rc-b .rc-slip { margin-top: 10px; }
+#receipt:not(.rc-b) .rc-cta { display: none; }
+@media (max-height: 700px) {
+  #receipt.rc-b .rc-mini { width: 92px; height: 92px; }
+  #receipt.rc-b .rc-stars { height: 44px; }
+  #receipt.rc-b .rc-star { width: 36px; height: 36px; }
+  #receipt.rc-b .rc-star:nth-child(2) { width: 42px; height: 42px; }
+  .rc-mini { width: 108px; height: 108px; }
+  .rc-line { padding: 1px 0; }
+  .rc-ic { width: 30px; height: 30px; }
+  .rc-lt { font-size: 17px; }
+  .rc-lt small { font-size: 13.5px; }
+  .rc-pts { font-size: 21px; }
+  .rc-lb li { padding: 2px 8px; font-size: 18px; }
+  .rc-next { padding: 11px; font-size: 22px; }
+  .sheet h2 { margin: 2px 0 10px; font-size: 22px; }
+  .sheet p { font-size: 17px; margin-bottom: 10px; }
+  .rules { font-size: 17px; line-height: 1.4; }
+  .lb .nm { font-size: 22px; }
+  .lb .lb-lv b { font-size: 26px; }
+  .lb .pos { font-size: 22px; }
+}
+/* start screen, step 1: compact top block (level tile beside the numbers) */
+.home-body.c1 { gap: 12px; }
+.home-body.c1 .hero { display: grid; grid-template-columns: auto 1fr; column-gap: 16px; align-items: center; padding: 12px 16px; }
+.home-body.c1 .hero-tile { grid-row: 1; width: 84px; height: 84px; border-radius: 20px; }
+.home-body.c1 .hero-tile span { font-size: 15px; }
+.home-body.c1 .hero-tile b { font-size: 42px; }
+.home-body.c1 .hero-stats { grid-row: 1; margin-top: 0; }
+.home-body.c1 .hero-stats b { font-size: 22px; }
+.home-body.c1 .hero-stats span { font-size: 13px; }
+.home-body.c1 .hero-track { grid-column: 1 / -1; margin-top: 12px; }
+.home-body.c1 .hero-togo { grid-column: 1 / -1; font-size: 15px; margin-top: 8px; }
+.home-body.c1 .btn.big { min-height: 58px; }
+/* step 2: no extra line under the ranking, smaller daily card */
+.home-body.c2 { gap: 10px; }
+.home-body.c2 .rank-note { display: none; }
+.home-body.c2 .daily-card { padding-top: 8px; padding-bottom: 8px; }
+.rank { cursor: pointer; }
+.rank h2 .more { color: var(--accent); font-weight: 900; }
+/* step 3 (very small screens): the medal bar steps aside */
+.home-body.c3 .hero-track, .home-body.c3 .hero-togo { display: none; }
+@media (max-height: 600px) {
+  .set-row { min-height: 46px; padding: 5px 14px; font-size: 17px; }
+  .set-row small { font-size: 13px; }
+  .set-tile { min-height: 46px; }
+  .sheet .btn.big { min-height: 54px; }
+  .sheet { padding-top: 6px; }
+  .sheet .grab { margin-bottom: 6px; }
+  .qr { width: min(300px, 72vw, 32vh); }
+}
+.home-body.c3 { gap: 8px; padding-top: 4px; }
+.home-body.c3 .btn.big { min-height: 52px; }
+.home-body.c3 .rank { padding-top: 6px; padding-bottom: 6px; }
+.home-body.c1 .dc-txt span { display: none; }
+.home-body.c1 .daily-card { padding-top: 10px; padding-bottom: 10px; }
+.home-body.c1 .dc-ic, .home-body.c1 .dc-ic svg { width: 44px; height: 44px; }
+.home-body.c1 .dc-ic b { top: 17px; font-size: 16px; }

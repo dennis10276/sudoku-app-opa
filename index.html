@@ -15,7 +15,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="style.css?v=26">
+<link rel="stylesheet" href="style.css?v=27">
 </head>
 <body>
 
@@ -43,7 +43,7 @@
     </div>
 
     <section class="rank" id="homeRank" hidden aria-labelledby="rankTitle">
-      <h2 id="rankTitle">Ranglijst</h2>
+      <h2 id="rankTitle">Ranglijst <span class="more">›</span></h2>
       <ol id="rankList"></ol>
       <p class="rank-note" id="rankNote"></p>
     </section>
@@ -58,19 +58,23 @@
 <!-- ============ Levels ============ -->
 <section class="screen" id="scrLevels">
   <header class="top">
-    <span class="top-side"></span>
+    <button class="icon-btn top-side back" data-act="home" aria-label="Terug naar Start"><svg viewBox="0 0 24 24"><use href="#i-left"/></svg><span>Start</span></button>
     <h1 class="title">Levels</h1>
     <button class="icon-btn top-side" data-act="settings" aria-label="Instellingen"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg></button>
   </header>
-  <div class="chips" id="lvChips"></div>
+  <div class="pager">
+    <button class="pg-btn" id="lvPrev" aria-label="Vorige levels"><svg viewBox="0 0 24 24"><use href="#i-left"/></svg></button>
+    <b id="lvRange">Level 1–25</b>
+    <button class="pg-btn" id="lvNext" aria-label="Volgende levels"><svg viewBox="0 0 24 24"><use href="#i-right"/></svg></button>
+  </div>
   <div class="lv-body"><div class="lv-grid" id="lvGrid"></div></div>
 </section>
 
 <!-- ============ Dagelijks ============ -->
 <section class="screen" id="scrDaily">
   <header class="top">
-    <span class="top-side"></span>
-    <h1 class="title">Dagelijkse uitdagingen</h1>
+    <button class="icon-btn top-side back" data-act="home" aria-label="Terug naar Start"><svg viewBox="0 0 24 24"><use href="#i-left"/></svg><span>Start</span></button>
+    <h1 class="title">Dagelijks</h1>
     <button class="icon-btn top-side" data-act="settings" aria-label="Instellingen"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg></button>
   </header>
   <div class="daily-body">
@@ -97,7 +101,7 @@
 <!-- ============ Ranglijst (en eigen statistieken) ============ -->
 <section class="screen" id="scrStats">
   <header class="top">
-    <span class="top-side"></span>
+    <button class="icon-btn top-side back" data-act="home" aria-label="Terug naar Start"><svg viewBox="0 0 24 24"><use href="#i-left"/></svg><span>Start</span></button>
     <h1 class="title">Ranglijst</h1>
     <button class="icon-btn top-side" data-act="settings" aria-label="Instellingen"><svg viewBox="0 0 24 24"><use href="#i-gear"/></svg></button>
   </header>
@@ -236,6 +240,7 @@
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <defs>
     <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
     <symbol id="i-left" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
     <symbol id="i-right" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></symbol>
     <symbol id="i-home" viewBox="0 0 24 24"><path d="M3.5 11 12 4l8.5 7"/><path d="M5.5 9.5V20h4.5v-6h4v6h4.5V9.5"/></symbol>
@@ -255,10 +260,10 @@
   </defs>
 </svg>
 
-<script src="puzzles.js?v=26"></script>
-<script src="core.js?v=26"></script>
-<script src="tracking-config.js?v=26"></script>
-<script src="tracking.js?v=26"></script>
-<script src="game.js?v=26"></script>
+<script src="puzzles.js?v=27"></script>
+<script src="core.js?v=27"></script>
+<script src="tracking-config.js?v=27"></script>
+<script src="tracking.js?v=27"></script>
+<script src="game.js?v=27"></script>
 </body>
 </html>

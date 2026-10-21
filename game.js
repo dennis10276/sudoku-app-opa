@@ -544,7 +544,7 @@ function gameOverSheet() {
     skip: () => { closeSheet(); skipLevel(); },
     cal: () => { closeSheet(); show('Daily'); },
     home: () => { closeSheet(); show('Home'); },
-  }, { locked: true });
+  }, { locked: true, onX: () => { closeSheet(); show(G && G.daily ? 'Daily' : 'Home'); } });
 }
 function skipLevel() {
   const n = G.n;
@@ -605,7 +605,7 @@ function showReceipt(g, R) {
   starsEl.innerHTML = [0, 1, 2].map(k => `<span class="rc-star${k < R.stars ? ' f' : ''}"><svg viewBox="0 0 24 24"><use href="#i-star"/></svg></span>`).join('');
   $('rcWhy').textContent = rcWhy(g, R); $('rcWhy').classList.remove('in');
   $('rcLines').innerHTML = ''; $('rcTot').textContent = '0'; $('rcRec').classList.remove('on');
-  $('rcProg').classList.remove('in'); $('rcCta').classList.remove('in');
+  $('rcProg').classList.remove('in'); $('rcCta').classList.remove('in'); rc.classList.remove('rc-b');
   $('rcGrand').textContent = fmtNum(R.grandBefore);
   // medal progress
   const target = Math.ceil(P.level / MEDAL_EVERY) * MEDAL_EVERY, left = target - P.level + 1;
@@ -646,17 +646,13 @@ function showReceipt(g, R) {
   step(t + 250, fast => {
     $('rcTot').textContent = fmtNum(total);
     if (R.record) $('rcRec').classList.add('on');
+    $('receipt').classList.add('rc-b');                  // second step: fold the lines away, show total + ranking
     $('rcProg').classList.add('in'); renderReceiptRank();
     $('rcBar').style.width = (R.medal ? 100 : pctAfter) + '%';
     if (fast) $('rcGrand').textContent = fmtNum(P.total);
     else { countUp($('rcGrand'), R.grandBefore, P.total, 1100); burstAt($('rcTot'), R.medal ? 140 : 70, R.medal ? 1.4 : 1.1); sound('win'); }
   });
-  step(t + 1200, fast => {
-    $('rcCta').classList.add('in');
-    // the ranking and the button sit below the points: scroll down to them so they are seen
-    const rc = $('receipt'), cta = $('rcCta');
-    if (rc.scrollHeight > rc.clientHeight + 4 && cta.scrollIntoView) cta.scrollIntoView({ behavior: fast ? 'auto' : 'smooth', block: 'end' });
-  });
+  step(t + 1200, () => { $('rcCta').classList.add('in'); fitList($('receipt'), document.querySelector('#rcRank .rc-lb')); });
   RC.steps.forEach(s => rcLater(() => { if (!s.ran) { s.ran = true; s.fn(false); } }, s.at));
   burstAt(null, 90, 1.2);
 }
@@ -718,11 +714,14 @@ function confettiLoop() {
 
 /* ================= sheets ================= */
 let sheetOpen = false, sheetLocked = false;
+// Every window has a big ✕ in its top corner. A window that needs a choice (opt.locked) says with opt.onX
+// what the ✕ does; otherwise it simply closes.
 function sheet(html, actions = {}, opt = {}) {
   endTracking('menu');
   stopScan();
   const m = $('modal'), sh = m.firstElementChild;
-  sh.innerHTML = '<div class="grab"></div>' + html;
+  sh.innerHTML = '<button class="sheet-x" data-a="__x" aria-label="Sluiten"><svg viewBox="0 0 24 24"><use href="#i-x"/></svg></button><div class="grab"></div>' + html;
+  actions = Object.assign({ __x: opt.onX || closeSheet }, actions);
   sh.onclick = e => {
     const b = e.target.closest('[data-a]');
     if (b && actions[b.dataset.a]) { sound('tap'); actions[b.dataset.a](b); }
@@ -751,65 +750,77 @@ function levelSheet(inGame) {
     </div>`, acts);
 }
 
+// Settings fit on one screen: the display choices, then big buttons to the other pages (each with "Terug").
+const swRow = (k, label, sub) => `<div class="set-row"><span>${label}${sub ? `<small>${sub}</small>` : ''}</span><button class="switch${S[k] ? ' on' : ''}" data-a="t-${k}" aria-label="${label}"></button></div>`;
+const swActs = keys => Object.fromEntries(keys.map(k => ['t-' + k, b => { S[k] = !S[k]; b.classList.toggle('on', S[k]); saveSettings(); applySettings(); }]));
 function settingsSheet() {
-  const sw = (k, label, sub) => `<div class="set-row"><span>${label}${sub ? `<small>${sub}</small>` : ''}</span><button class="switch${S[k] ? ' on' : ''}" data-a="t-${k}" aria-label="${label}"></button></div>`;
   const seg = (k, opts) => `<span class="seg">${opts.map(([v, n]) => `<button class="${S[k] === v ? 'on' : ''}" data-a="s-${k}-${v}">${n}</button>`).join('')}</span>`;
-  const acts = {};
-  Object.keys(DEF).forEach(k => {
-    acts['t-' + k] = b => { S[k] = !S[k]; b.classList.toggle('on', S[k]); saveSettings(); applySettings(); };
-  });
+  const acts = swActs(['sound']);
   [['theme', ['licht', 'donker', 'auto']], ['size', ['normaal', 'groot']]].forEach(([k, vs]) => vs.forEach(v => {
     acts[`s-${k}-${v}`] = b => {
       S[k] = v; saveSettings(); applySettings();
       b.parentNode.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
     };
   }));
-  acts.rules = () => rulesSheet(true);
-  acts.points = () => pointsSheet(true);
-  acts.install = () => { closeSheet(); showLanding(true); };
-  acts.transfer = () => transferMenu();
-  acts.restartLvl = () => { closeSheet(); restartGame(); };
-  acts.reset = () => confirmSheet('Alles opnieuw beginnen?', 'Je gaat terug naar level 1. Alle punten, sterren en dagelijkse uitdagingen worden gewist. Dit kan niet ongedaan worden gemaakt.', 'Alles wissen', () => {
-    Object.assign(P, { level: 1, best: {}, total: 0, fails: {}, wins: 0, bestWins: 0, played: 0 }); saveProgress();
-    Object.keys(dailyDone).forEach(k => delete dailyDone[k]); store(LS.done, dailyDone);
-    Object.keys(dailyGames).forEach(k => delete dailyGames[k]); store(LS.daily, dailyGames);
-    store(LS.main, null); G = null;
-    show('Home'); toast('Alles is gewist. Veel plezier bij level 1!');
+  Object.assign(acts, {
+    game: () => gameOptionsSheet(), marks: () => marksSheet(),
+    rules: () => rulesSheet(true), points: () => pointsSheet(true),
+    install: () => { closeSheet(); showLanding(true); },
+    transfer: () => transferMenu(),
+    reset: () => confirmSheet('Alles opnieuw beginnen?', 'Je gaat terug naar level 1. Alle punten, sterren en dagelijkse uitdagingen worden gewist. Dit kan niet ongedaan worden gemaakt.', 'Alles wissen', () => {
+      Object.assign(P, { level: 1, best: {}, total: 0, fails: {}, wins: 0, bestWins: 0, played: 0 }); saveProgress();
+      Object.keys(dailyDone).forEach(k => delete dailyDone[k]); store(LS.done, dailyDone);
+      Object.keys(dailyGames).forEach(k => delete dailyGames[k]); store(LS.daily, dailyGames);
+      store(LS.main, null); G = null;
+      show('Home'); toast('Alles is gewist. Veel plezier bij level 1!');
+    }, () => settingsSheet()),
+    restartLvl: () => { closeSheet(); restartGame(); },
+    close: closeSheet,
   });
   const inGame = screen === 'Game' && G && !G.won;
+  const tile = (a, label, cls = '') => `<button class="set-tile ${cls}" data-a="${a}">${label}</button>`;
   sheet(`<h2>Instellingen</h2>
-    <div class="set-group"><h4>Weergave</h4>
-      <div class="set-row"><span>Grootte cijfers</span>${seg('size', [['normaal', 'Groot'], ['groot', 'Extra groot']])}</div>
-      <div class="set-row"><span>Kleur</span>${seg('theme', [['licht', 'Licht'], ['donker', 'Donker'], ['auto', 'Auto']])}</div>
-      ${sw('showTime', 'Tijd tonen', 'De tijd telt niet mee voor je punten')}
-      ${sw('sound', 'Geluid')}
-    </div>
-    <div class="set-group"><h4>Spel</h4>
-      ${sw('autoCheck', 'Fouten meteen laten zien', 'Een fout getal wordt rood')}
-      ${sw('mistakeLimit', 'Maximaal 3 fouten', 'Na 3 fouten is het spel voorbij')}
-      ${sw('autoNotes', 'Notities vanzelf weghalen', 'Als je een getal invult')}
-      ${sw('hideUsed', 'Gebruikte getallen verbergen', 'Als een getal 9 keer is ingevuld')}
-    </div>
-    <div class="set-group"><h4>Markeren</h4>
-      ${sw('hlArea', 'Rij, kolom en blok', 'Rond het gekozen vakje')}
-      ${sw('hlSame', 'Dezelfde getallen')}
-      ${sw('hlDup', 'Dubbele getallen', 'Als een getal twee keer in een rij, kolom of blok staat')}
-    </div>
     <div class="set-group">
-      ${inGame ? '<button class="set-row link" data-a="restartLvl">Deze puzzel opnieuw beginnen</button>' : ''}
-      <button class="set-row link" data-a="points">Zo verdien je punten</button>
-      <button class="set-row link" data-a="rules">Spelregels</button>
-      ${IN_APP ? '' : '<button class="set-row link" data-a="install">Op het beginscherm zetten</button>'}
-      <button class="set-row link" data-a="transfer">Voortgang overzetten</button>
-      <button class="set-row link" data-a="reset" style="color:var(--err)">Alles opnieuw beginnen</button>
+      <div class="set-row"><span>Cijfers</span>${seg('size', [['normaal', 'Groot'], ['groot', 'Extra groot']])}</div>
+      <div class="set-row"><span>Kleur</span>${seg('theme', [['licht', 'Licht'], ['donker', 'Donker'], ['auto', 'Auto']])}</div>
+      ${swRow('sound', 'Geluid')}
     </div>
-    <div class="btns"><button class="btn primary big" data-a="close">Klaar</button></div>`, Object.assign(acts, { close: closeSheet }));
+    <div class="set-tiles">
+      ${tile('game', 'Spel')}${tile('marks', 'Markeren')}
+      ${tile('rules', 'Spelregels')}${tile('points', 'Punten')}
+      ${tile('transfer', 'Overzetten')}${tile('reset', 'Alles wissen', 'danger')}
+      ${inGame ? tile('restartLvl', 'Deze puzzel opnieuw', 'wide') : ''}
+      ${IN_APP || isStandalone() ? '' : tile('install', 'Op beginscherm', 'wide')}
+    </div>
+    <div class="btns"><button class="btn primary big" data-a="close">Klaar</button></div>`, acts);
 }
-function confirmSheet(title, text, okLabel, onOk) {
+function gameOptionsSheet() {
+  const keys = ['autoCheck', 'mistakeLimit', 'autoNotes', 'hideUsed', 'showTime'];
+  sheet(`<h2>Spel</h2>
+    <div class="set-group">
+      ${swRow('autoCheck', 'Fouten meteen laten zien', 'Een fout getal wordt rood')}
+      ${swRow('mistakeLimit', 'Maximaal 3 fouten', 'Na 3 fouten is het spel voorbij')}
+      ${swRow('autoNotes', 'Notities vanzelf weghalen', 'Als je een getal invult')}
+      ${swRow('hideUsed', 'Gebruikte getallen verbergen', 'Als een getal 9 keer is ingevuld')}
+      ${swRow('showTime', 'Tijd tonen', 'Telt niet mee voor je punten')}
+    </div>
+    <div class="btns"><button class="btn primary big" data-a="back">‹ Terug</button></div>`, Object.assign(swActs(keys), { back: settingsSheet }));
+}
+function marksSheet() {
+  const keys = ['hlArea', 'hlSame', 'hlDup'];
+  sheet(`<h2>Markeren</h2>
+    <div class="set-group">
+      ${swRow('hlArea', 'Rij, kolom en blok', 'Rond het gekozen vakje')}
+      ${swRow('hlSame', 'Dezelfde getallen')}
+      ${swRow('hlDup', 'Dubbele getallen', 'Hetzelfde getal twee keer in een rij, kolom of blok')}
+    </div>
+    <div class="btns"><button class="btn primary big" data-a="back">‹ Terug</button></div>`, Object.assign(swActs(keys), { back: settingsSheet }));
+}
+function confirmSheet(title, text, okLabel, onOk, onNo) {
   sheet(`<h2>${title}</h2><p>${text}</p><div class="btns">
     <button class="btn danger big" data-a="ok">${okLabel}</button>
-    <button class="btn ghost" data-a="no">Annuleren</button></div>`, {
-    ok: () => { closeSheet(); onOk(); }, no: closeSheet,
+    <button class="btn big" data-a="no">Annuleren</button></div>`, {
+    ok: () => { closeSheet(); onOk(); }, no: onNo || closeSheet,
   });
 }
 function pointsSheet(back) {
@@ -817,34 +828,37 @@ function pointsSheet(back) {
   sheet(`<h2>Zo verdien je punten</h2>
     <div class="pts-table">
       <div><span>Elk goed getal</span><b>+${b}</b></div>
-      <div><span>Goed op rij: elke keer 2 extra<small>tot 20 extra; een fout begint de reeks opnieuw</small></span><b>+2…20</b></div>
+      <div><span>Goed op rij: elke keer 2 extra</span><b>+2…20</b></div>
       <div><span>Rij, kolom of blok vol</span><b>+30</b></div>
-      <div><span>Alle 9 van een getal ingevuld</span><b>+50</b></div>
+      <div><span>Alle 9 van een getal</span><b>+50</b></div>
       <div><span>Level klaar</span><b>+${10 * b}</b></div>
       <div><span>Geen enkele fout</span><b>+${10 * b}</b></div>
       <div><span>Geen hints gebruikt</span><b>+${10 * b}</b></div>
     </div>
-    <p>Een getal dat een hint invult geeft geen punten. De tijd telt nooit mee.<br>
-    <b>Sterren:</b> ★ opgelost · ★★ hooguit één fout · ★★★ geen fouten en geen hints.<br>
-    Elke 100 levels zijn de getallen 1 punt meer waard.</p>
-    <div class="btns"><button class="btn primary big" data-a="ok">${back ? 'Terug' : 'Begrepen'}</button></div>`, {
+    <p class="pts-stars">★ opgelost · ★★ hooguit één fout<br>★★★ geen fouten en geen hints</p>
+    <div class="btns"><button class="btn primary big" data-a="ok">${back ? '‹ Terug' : 'Begrepen'}</button></div>`, {
     ok: () => back ? settingsSheet() : closeSheet(),
   });
 }
-function rulesSheet(back) {
-  sheet(`<h2>Spelregels</h2>
+function rulesSheet(back, page = 1) {
+  const done = () => back ? settingsSheet() : closeSheet();
+  if (page === 1) sheet(`<h2>Spelregels <small>1/2</small></h2>
     <div class="rules">
-      <p>Een sudoku heeft 9 rijen, 9 kolommen en 9 blokken van 3×3 vakjes.</p>
-      <p>Vul de lege vakjes met de getallen <b>1 tot en met 9</b>. Elk getal mag in elke <b>rij</b>, elke <b>kolom</b> en elk <b>blok</b> maar één keer voorkomen.</p>
+      <p>Vul de lege vakjes met de getallen <b>1 tot en met 9</b>.</p>
+      <p>Elk getal mag in elke <b>rij</b>, elke <b>kolom</b> en elk <b>blok</b> van 3×3 maar één keer voorkomen.</p>
       <p><b>Invullen:</b> tik op een vakje en daarna op een getal onderaan.</p>
-      <p><b>Notities:</b> zet Notities aan om kleine hulpgetallen in een vakje te zetten. Tik nog eens op hetzelfde getal om het weer weg te halen.</p>
-      <p><b>Hint:</b> kies een leeg vakje en tik op Hint, of tik op Hint zonder vakje: dan wordt een makkelijk vakje voor je ingevuld, met uitleg.</p>
-      <p><b>Fouten:</b> een fout getal wordt rood. Na 3 fouten is het spel voorbij, maar je kunt verder met een tweede kans. Lukt een level twee keer niet, dan mag je het overslaan.</p>
-      <p><b>Levels:</b> elk level is een heel klein beetje moeilijker dan het vorige. Zo word je vanzelf steeds beter.</p>
+      <p><b>Notities:</b> zet Notities aan voor kleine hulpgetallen. Tik nog eens op hetzelfde getal om het weg te halen.</p>
     </div>
-    <div class="btns"><button class="btn primary big" data-a="ok">${back ? 'Terug' : 'Begrepen'}</button></div>`, {
-    ok: () => back ? settingsSheet() : closeSheet(),
-  });
+    <div class="btns two"><button class="btn big" data-a="back">‹ ${back ? 'Terug' : 'Sluiten'}</button><button class="btn primary big" data-a="next">Verder ›</button></div>`,
+    { back: done, next: () => rulesSheet(back, 2) });
+  else sheet(`<h2>Spelregels <small>2/2</small></h2>
+    <div class="rules">
+      <p><b>Hint:</b> tik op Hint. Dan wordt een vakje voor je ingevuld, met uitleg.</p>
+      <p><b>Fouten:</b> een fout getal wordt rood. Na 3 fouten is het spel voorbij, maar je kunt verder met een tweede kans. Lukt een level twee keer niet, dan mag je het overslaan.</p>
+      <p><b>Levels:</b> elk level is een heel klein beetje moeilijker dan het vorige.</p>
+    </div>
+    <div class="btns two"><button class="btn big" data-a="prev">‹ Vorige</button><button class="btn primary big" data-a="ok">${back ? 'Klaar' : 'Begrepen'}</button></div>`,
+    { prev: () => rulesSheet(back, 1), ok: done });
 }
 
 /* ================= toast ================= */
@@ -904,6 +918,7 @@ function openGame() {
 }
 document.querySelectorAll('.tabbar button').forEach(b => b.addEventListener('click', () => { sound('tap'); show(b.dataset.tab); }));
 document.querySelectorAll('[data-act="settings"]').forEach(b => b.addEventListener('click', () => { sound('tap'); settingsSheet(); }));
+document.querySelectorAll('[data-act="home"]').forEach(b => b.addEventListener('click', () => { sound('tap'); show('Home'); }));
 
 /* ---------- home ---------- */
 function miniGrid() {
@@ -949,6 +964,7 @@ $('homePlay').addEventListener('click', () => {
   else playLevel(P.level);
 });
 $('homeNext').addEventListener('click', () => { sound('tap'); newGame(P.level); });
+$('homeRank').addEventListener('click', () => { sound('tap'); show('Stats'); });
 $('homeDaily').addEventListener('click', () => { sound('tap'); calSel = todayKey(); calMonth = null; show('Daily'); });
 
 /* ---------- ranking: which level the family is at ----------
@@ -1037,6 +1053,23 @@ function shownName(x) {
   if (normName(x.name) === 'opa') return 'Aad';
   return x.name === 'Jij' ? 'Jij' : x.name + ' (jij)';
 }
+// Nothing may need scrolling: while the box is too tall, take out the list row farthest from "me"
+// (rivals before family). The rows stay in order; a gap is not shown.
+const overflowing = e => !!e && typeof e.scrollHeight === 'number' && e.scrollHeight > e.clientHeight + 1;
+function fitList(scroller, list, min = 3) {
+  if (!scroller || !list || typeof scroller.scrollHeight !== 'number') return;
+  const rows = () => [...list.children];
+  let guard = 40;
+  while (guard-- > 0 && overflowing(scroller) && rows().length > min) {
+    const all = rows(), me = all.findIndex(li => li.classList.contains('me'));
+    // farthest first; rivals before family; at the same distance the one below goes before the one to catch
+    const far = all.map((li, i) => ({ li, d: Math.abs(i - me) + (li.classList.contains('real') ? 0 : 0.5) + (i > me ? 0.25 : 0) })).filter(x => !x.li.classList.contains('me'))
+      .sort((a, b) => b.d - a.d)[0];
+    if (!far) break;
+    far.li.remove();
+  }
+}
+
 // the line under a ranking: who is next to catch, or who is right behind
 function rankNote(r) {
   const { rows, mine } = r;
@@ -1084,12 +1117,13 @@ function renderReceiptRank() {
   const list = el('ol', 'rc-lb');
   show.forEach(i => {
     const x = r.rows[i];
-    const li = el('li', x.me ? 'me' + (RC.passed.length ? ' up' : '') : '');
+    const li = el('li', x.me ? 'me' + (RC.passed.length ? ' up' : '') : x.rival ? '' : 'real');
     li.append(el('span', 'pos', rankPos(r, i, x)), el('span', 'nm', shownName(x).replace(' (jij)', '')), el('span', 'lb-lv', x.level ? String(x.level) : '–'));
     list.appendChild(li);
   });
   box.append(head, list);
   box.hidden = false;
+  fitList($('receipt'), list);
 }
 
 // the ranking card on the start screen
@@ -1098,7 +1132,7 @@ function renderRanking() {
   if (screen === 'Stats') renderStats();
   const box = $('homeRank'); if (!box) return;
   const ranked = rankRows();
-  if (!ranked) { box.hidden = true; return; }
+  if (!ranked) { box.hidden = true; fitHome(); return; }
   const { rows, crown } = ranked;
   const list = $('rankList'); list.replaceChildren();
   // everyone real always stays on the list; rivals fill it up to six places
@@ -1106,24 +1140,37 @@ function renderRanking() {
   rows.forEach((r, i) => { if (keep.size < 6 && r.rival) keep.add(i); });
   rows.forEach((r, i) => {
     if (!keep.has(i)) return;
-    const li = el('li', (r.me ? 'me ' : '') + (i === 0 ? 'first' : ''));
+    const li = el('li', (r.me ? 'me ' : r.rival ? '' : 'real ') + (i === 0 ? 'first' : ''));
     li.append(el('span', 'pos', i === 0 && crown ? '👑' : String(i + 1)), el('span', 'nm', shownName(r)),
       el('span', 'rk-lv' + (r.level ? '' : ' unknown'), r.level ? `level ${r.level}` : 'level volgt'));
     list.appendChild(li);
   });
   $('rankNote').textContent = rankNote(ranked);
   box.hidden = false;
+  fitHome();
 }
+// the start screen shrinks step by step until it fits: compact top block, fewer ranking rows, no extra line
+function fitHome() {
+  const body = document.querySelector('.home-body');
+  if (!body || screen !== 'Home' || !body.classList) return;
+  body.classList.remove('c1', 'c2', 'c3');
+  const list = $('rankList');
+  if (overflowing(body)) body.classList.add('c1');
+  fitList(body, list, 3);
+  if (overflowing(body)) body.classList.add('c2');
+  fitList(body, list, 2);
+  if (overflowing(body)) body.classList.add('c3');
+}
+addEventListener('resize', () => { if (screen === 'Home') renderRanking(); });
 
 /* ---------- levels ---------- */
 let lvPage = null;
-const PAGE = 50;
+const PAGE = 25;          // 5 × 5 tiles fill the screen; two pages per medal (every 50 levels)
 function renderLevels() {
   const maxPage = Math.floor((P.level - 1) / PAGE) + 1;   // pages that hold unlocked levels, plus the next one
   if (lvPage == null || lvPage > maxPage) lvPage = Math.floor((P.level - 1) / PAGE);
-  const chips = [];
-  for (let p = 0; p <= maxPage; p++) chips.push(`<button data-p="${p}" class="${p === lvPage ? 'on' : ''}">${p * PAGE + 1}–${(p + 1) * PAGE}</button>`);
-  $('lvChips').innerHTML = chips.join('');
+  $('lvRange').textContent = `Level ${lvPage * PAGE + 1}–${(lvPage + 1) * PAGE}`;
+  $('lvPrev').disabled = lvPage <= 0; $('lvNext').disabled = lvPage >= maxPage;
   const m = savedMain(), busyN = m && !m.G.won ? m.G.n : null;
   let html = '';
   for (let n = lvPage * PAGE + 1; n <= (lvPage + 1) * PAGE; n++) {
@@ -1135,9 +1182,9 @@ function renderLevels() {
       ${busyN === n ? '<em>bezig</em>' : ''}</button>`;
   }
   $('lvGrid').innerHTML = html;
-  const on = $('lvChips').querySelector('.on'); if (on && on.scrollIntoView) on.scrollIntoView({ inline: 'center', block: 'nearest' });
 }
-$('lvChips').addEventListener('click', e => { const b = e.target.closest('button[data-p]'); if (!b) return; sound('tap'); lvPage = +b.dataset.p; renderLevels(); });
+$('lvPrev').addEventListener('click', () => { if (lvPage > 0) { sound('tap'); lvPage--; renderLevels(); } });
+$('lvNext').addEventListener('click', () => { sound('tap'); lvPage++; renderLevels(); });
 $('lvGrid').addEventListener('click', e => {
   const b = e.target.closest('button[data-n]'); if (!b || b.disabled) return;
   sound('tap'); playLevel(+b.dataset.n);
@@ -1191,16 +1238,17 @@ $('dPlay').addEventListener('click', () => {
   newGame(P.level, k);
 });
 
-/* ---------- ranking screen (the "Ranglijst" tab), with your own numbers below ---------- */
+/* ---------- ranking screen (the "Ranglijst" tab); your own numbers are one tap away ---------- */
 function renderStats() {
   const body = $('sBody');
   body.replaceChildren();
   const r = rankRows();
+  let list = null;
   if (r) {
     const top = Math.max(1, ...r.rows.map(x => x.level || 0));
-    const list = el('ol', 'lb');
+    list = el('ol', 'lb');
     r.rows.forEach((x, i) => {
-      const li = el('li', (x.me ? 'me' : '') + (i < 3 && x.level > 0 ? ' top' + (i + 1) : ''));
+      const li = el('li', (x.me ? 'me' : x.rival ? '' : 'real') + (i < 3 && x.level > 0 ? ' top' + (i + 1) : ''));
       li.style.setProperty('--w', Math.round(100 * (x.level || 0) / top) + '%');
       const lv = el('span', 'lb-lv'); lv.append(el('small', null, 'level'), el('b', null, x.level ? String(x.level) : '–'));
       li.append(el('span', 'pos', rankPos(r, i, x)), el('span', 'nm', shownName(x)), lv);
@@ -1210,15 +1258,18 @@ function renderStats() {
   } else {
     body.append(el('p', 'lb-note', 'De ranglijst verschijnt zodra de anderen ook Sudoku spelen.'));
   }
+  const mine = el('button', 'btn my-btn', 'Jouw cijfers');
+  mine.addEventListener('click', () => { sound('tap'); myNumbersSheet(); });
+  body.appendChild(mine);
+  if (list) fitList(body, list);
+}
+function myNumbersSheet() {
   const best = Object.values(P.best);
   const box = (label, val, cls = '') => `<div class="stat ${cls}"><span>${label}</span><b>${val}</b></div>`;
-  const three = best.filter(b => b.t === 3).length;
-  const mine = el('div', 'my-stats');
-  mine.innerHTML = `
-    <h3>Jouw spel</h3>
+  sheet(`<h2>Jouw cijfers</h2>
     <div class="stat-grid">${box('Totaalscore', fmtNum(P.total))}${box('Huidig level', P.level)}${box('Sterren', fmtNum(starsTotal()), 'gold')}${box('Medailles', medals(), 'gold')}
-    ${box('Drie sterren', three)}${box('Gewonnen op rij', P.wins)}${box('Langste reeks', P.bestWins)}${box('Dagelijkse uitdagingen', Object.keys(dailyDone).length)}</div>`;
-  body.appendChild(mine);
+    ${box('Drie sterren', best.filter(b => b.t === 3).length)}${box('Gewonnen op rij', P.wins)}${box('Langste reeks', P.bestWins)}${box('Uitdagingen', Object.keys(dailyDone).length)}</div>
+    <div class="btns"><button class="btn primary big" data-a="close">Sluiten</button></div>`, { close: closeSheet });
 }
 
 /* ---------- game controls ---------- */
@@ -1588,6 +1639,6 @@ function boot() {
   }
 }
 // testing hook
-window.__sudoku = { RC, packProgress, unpackProgress, transferCode, get deviceId() { return playTracking?.deviceId; }, get G() { return G; }, set G(v) { G = v; }, get sel() { return sel; }, select, input, hint, undo, erase, toggleNotes, newGame, playLevel, show, render, P, S, win, levelSheet, settingsSheet, dailyDone, finishReceipt, closeReceipt, renderReceiptRank, levelEntry, baseFor, LEVEL_COUNT, dailyEntry };
+window.__sudoku = { RC, myNumbersSheet, gameOverSheet, packProgress, unpackProgress, transferCode, get deviceId() { return playTracking?.deviceId; }, get G() { return G; }, set G(v) { G = v; }, get sel() { return sel; }, select, input, hint, undo, erase, toggleNotes, newGame, playLevel, show, render, P, S, win, levelSheet, settingsSheet, dailyDone, finishReceipt, closeReceipt, renderReceiptRank, levelEntry, baseFor, LEVEL_COUNT, dailyEntry };
 boot();
 })();
