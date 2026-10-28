@@ -179,6 +179,13 @@ getoond op iPhone/iPad of in de app zelf. De service worker laat `.apk` met rust
 QR-codes: `qrcode.js` is qrcode-generator 1.4.4 van Kazuhiko Arase (MIT-licentie); `jsqr.js` is
 jsQR 1.4.0 van Cosmo Wolfe (Apache-licentie 2.0), verkleind.
 
+## Testmodus
+
+https://dennis10276.github.io/sudoku-app-opa/?test opent de testmodus (bijv. op de pc): alle levels zijn open,
+"Naar level…" (of tik op "Level 1–25") springt naar elk level, "Vul in" maakt het open level af om het
+puntenbonnetje te zien, "Stoppen" gaat terug naar het gewone spel. De testmodus bewaart alles apart
+(`test:`-sleutels in localStorage) en stuurt niets naar het familieoverzicht of de ranglijst.
+
 ## Eén scherm, nooit scrollen
 
 Opa bedient de telefoon met één hand: niets hoeft te scrollen (getest op iPhone SE-formaat, 375 × 647 als

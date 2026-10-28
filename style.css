@@ -850,3 +850,13 @@ body.dark .lvl-badge small { color: #b9c4d6; }
 .lvl-badge.long { gap: 5px; padding: 5px 12px 6px; }
 .lvl-badge.long small { font-size: 13px; }
 .lvl-badge.long b { font-size: 25px; }
+/* test mode (…/?test) */
+#testBar { position: fixed; left: 0; right: 0; top: 0; height: 36px; z-index: 3500; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 0 8px; background: #c2185b; color: #fff; font-size: 14px; font-weight: 700; white-space: nowrap; }
+body.testmode .screen, body.testmode #receipt, body.testmode #landing { top: 36px; }
+body.testmode #modal { top: 36px; }
+#testBar b { letter-spacing: .08em; }
+#testBar span { opacity: .85; font-weight: 600; }
+#testBar button { border: 0; border-radius: 999px; padding: 6px 12px; background: rgba(255, 255, 255, .2); color: #fff; font: inherit; font-weight: 800; cursor: pointer; }
+#testBar button:hover { background: rgba(255, 255, 255, .32); }
+@media (max-width: 520px) { #testBar span { display: none; } }
+body.testmode #lvRange { cursor: pointer; text-decoration: underline dotted; }

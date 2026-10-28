@@ -5,10 +5,13 @@ const C = window.SudokuCore;
 const playTracking = window.SudokuTracking;
 const $ = id => document.getElementById(id);
 const LS = { set: 'sudoku.settings', main: 'sudoku.game', daily: 'sudoku.dailyGames', done: 'sudoku.dailyDone', prog: 'sudoku.progress' };
+// Test mode (…/?test): every level open, its own saved progress ("test:" keys), nothing sent to the family overview.
+const TEST = /[?&]test\b/.test((typeof location !== 'undefined' && location.search) || '');
+const tk = key => (TEST ? 'test:' : '') + key;
 function load(key, fallback) {
-  try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; }
+  try { const v = localStorage.getItem(tk(key)); return v ? JSON.parse(v) : fallback; } catch (e) { return fallback; }
 }
-function store(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {} }
+function store(key, val) { try { localStorage.setItem(tk(key), JSON.stringify(val)); } catch (e) {} }
 
 const DEF = {
   sound: true, autoCheck: true, mistakeLimit: true, showTime: false,
@@ -1175,14 +1178,14 @@ addEventListener('resize', () => { if (screen === 'Home') renderRanking(); });
 let lvPage = null;
 const PAGE = 25;          // 5 × 5 tiles fill the screen; two pages per medal (every 50 levels)
 function renderLevels() {
-  const maxPage = Math.floor((P.level - 1) / PAGE) + 1;   // pages that hold unlocked levels, plus the next one
+  const maxPage = TEST ? Math.floor((LEVEL_COUNT - 1) / PAGE) : Math.floor((P.level - 1) / PAGE) + 1;   // pages that hold unlocked levels, plus the next one
   if (lvPage == null || lvPage > maxPage) lvPage = Math.floor((P.level - 1) / PAGE);
   $('lvRange').textContent = `Level ${lvPage * PAGE + 1}–${(lvPage + 1) * PAGE}`;
   $('lvPrev').disabled = lvPage <= 0; $('lvNext').disabled = lvPage >= maxPage;
   const m = savedMain(), busyN = m && !m.G.won ? m.G.n : null;
   let html = '';
   for (let n = lvPage * PAGE + 1; n <= (lvPage + 1) * PAGE; n++) {
-    const b = P.best[n], open = n <= P.level, st = b ? b.t : 0;
+    const b = P.best[n], open = TEST || n <= P.level, st = b ? b.t : 0;
     const cls = ['lv', open ? '' : 'locked', n === P.level ? 'cur' : '', b ? 'done' : '', n % MEDAL_EVERY === 0 ? 'medal' : ''].join(' ');
     html += `<button class="${cls}" data-n="${n}" ${open ? '' : 'disabled'} aria-label="Level ${n}">
       ${open ? `<b>${n}</b>` : `<svg viewBox="0 0 24 24"><use href="#i-lock"/></svg><b>${n}</b>`}
@@ -1193,6 +1196,7 @@ function renderLevels() {
 }
 $('lvPrev').addEventListener('click', () => { if (lvPage > 0) { sound('tap'); lvPage--; renderLevels(); } });
 $('lvNext').addEventListener('click', () => { sound('tap'); lvPage++; renderLevels(); });
+$('lvRange').addEventListener('click', () => { if (TEST) testJump(); });
 $('lvGrid').addEventListener('click', e => {
   const b = e.target.closest('button[data-n]'); if (!b || b.disabled) return;
   sound('tap'); playLevel(+b.dataset.n);
@@ -1634,13 +1638,40 @@ window.__appBack = () => {
   return false;
 };
 
+/* ================= test mode ================= */
+function testJump() {
+  const v = window.prompt(`Naar welk level? (1–${LEVEL_COUNT})`, String(P.level));
+  const n = Math.round(Number(v));
+  if (!(n >= 1 && n <= LEVEL_COUNT)) return;
+  lvPage = Math.floor((n - 1) / PAGE);
+  playLevel(n);
+}
+function testSolve() {
+  if (screen !== 'Game' || !G || G.won) { toast('Open eerst een level.'); return; }
+  for (let i = 0; i < 81; i++) if (G.val[i] !== G.sol[i]) { select(i); input(G.sol[i]); if (G.won) break; }
+}
+function startTestMode() {
+  document.body.classList.add('testmode');
+  const bar = document.createElement('div'); bar.id = 'testBar';
+  bar.innerHTML = `<b>TEST</b><span>alle levels open · telt niet mee</span>
+    <button data-t="jump">Naar level…</button><button data-t="solve">Vul in</button><button data-t="stop">Stoppen</button>`;
+  bar.addEventListener('click', e => {
+    const t = e.target.closest('[data-t]'); if (!t) return;
+    if (t.dataset.t === 'jump') testJump();
+    if (t.dataset.t === 'solve') testSolve();
+    if (t.dataset.t === 'stop') location.href = location.pathname;
+  });
+  document.body.appendChild(bar);
+}
+
 /* ================= boot ================= */
 function boot() {
   applySettings();
   const m = savedMain();
   if (m && !m.G.won && !m.G.lost) { G = prepare(m.G); H = m.H || []; sel = G.sel != null ? G.sel : -1; notesMode = !!G.notesMode; }
   show('Home');
-  if (!isStandalone()) showLanding(false);
+  if (TEST) startTestMode();
+  else if (!isStandalone()) showLanding(false);
   importFromLink();
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     navigator.serviceWorker.register('sw.js').catch(() => {});

@@ -4,7 +4,7 @@ const path = require('node:path');
 const { webcrypto } = require('node:crypto');
 
 // Run the actual game and tracker together; the DOM only supplies rendering surfaces.
-function app(remote = () => null, stored = {}) {
+function app(remote = () => null, stored = {}, opts = {}) {
   let now = Date.parse('2026-10-11T10:00:00Z');
   const nodes = new Map(), intervals = [], saved = new Map(Object.entries(stored)), records = new Map();
   function node() {
@@ -28,7 +28,7 @@ function app(remote = () => null, stored = {}) {
   get('modal').children.push(node());
   const context = vm.createContext({
     Date: class extends Date { static now() { return now; } }, Intl, crypto: webcrypto, AbortController, URLSearchParams,
-    navigator: { onLine: true, standalone: true }, location: { protocol: 'https:' },
+    navigator: { onLine: true, standalone: true }, location: { protocol: 'https:', search: opts.search || '', pathname: '/sudoku-app-opa/' },
     localStorage: { getItem: k => saved.get(k), setItem: (k, v) => saved.set(k, v) },
     document: { hidden: false, body: node(), documentElement: node(), getElementById: get, createElement: node,
       querySelector: get, querySelectorAll: () => [], addEventListener() {} },
@@ -43,7 +43,7 @@ function app(remote = () => null, stored = {}) {
   context.window = context; context.self = context;
   for (const file of ['core.js', 'puzzles.js', 'tracking.js', 'game.js']) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', file), 'utf8'), context);
   return {
-    game: context.__sudoku, nodes, records,
+    game: context.__sudoku, nodes, records, context,
     advance(seconds) { for (let i = 0; i < seconds; i++) { now += 1000; intervals.filter(x => x.ms === 1000).forEach(x => x.fn()); } },
     async flush() { await new Promise(r => setImmediate(r)); await context.SudokuTracking.flush(); }
   };

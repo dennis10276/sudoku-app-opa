@@ -1,8 +1,8 @@
 /* One small, replaceable summary per play session. No puzzle grids, solutions or move history. */
 (() => {
 'use strict';
-// Automated browser runs must not create real players or gameplay history.
-if (navigator.webdriver === true) return;
+// Automated browser runs and the test mode (?test) must not create real players or gameplay history.
+if (navigator.webdriver === true || /[?&]test\b/.test(location.search || '')) return;
 const KEY = 'patience.sharing.v1', QUEUE = 'sudoku.sessions.v1';
 const CURSOR = 'sudoku.play-record.v2';
 const IDLE = 120000, HEARTBEAT = 30000, MAX_PENDING = 500;

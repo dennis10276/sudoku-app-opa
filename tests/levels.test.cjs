@@ -259,3 +259,16 @@ test('the new level list sends everyone back to level 1 once; daily challenges a
   const later = app(() => null, { 'sudoku.levelsEpoch': '3', 'sudoku.progress': JSON.stringify({ level: 4, best: {}, total: 900 }) });
   assert.equal(later.game.P.level, 4);
 });
+
+test('test mode (?test): every level open, its own progress, nothing sent to the family overview', async () => {
+  const real = { 'sudoku.progress': JSON.stringify({ level: 7, best: {}, total: 500 }), 'sudoku.levelsEpoch': '3' };
+  const a = app(() => null, real, { search: '?test' });
+  assert.equal(a.game.P.level, 1, 'test mode does not use the real progress');
+  a.game.show('Levels');
+  const grid = a.nodes.get('lvGrid').html;
+  assert.ok(!/disabled/.test(grid), 'no locked levels');
+  a.game.playLevel(3000); a.game.hint(); await new Promise(r => setImmediate(r));
+  assert.equal(a.context.SudokuTracking, undefined, 'tracking is off');
+  assert.equal(a.records.size, 0, 'no play records');
+  assert.equal(a.game.G.n, 3000);
+});
