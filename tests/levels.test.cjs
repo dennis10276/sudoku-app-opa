@@ -272,3 +272,18 @@ test('test mode (?test): every level open, its own progress, nothing sent to the
   assert.equal(a.records.size, 0, 'no play records');
   assert.equal(a.game.G.n, 3000);
 });
+
+test('lost progress comes back from this device\'s own play records, and is never lowered', async () => {
+  let a;
+  const rec = (mode, extra = {}) => ({ app: 'sudoku', wins: 1, mistakes: 0, hints: 0, detail: { mode, build: 'sudoku-15', score: 2000 }, ...extra });
+  const remote = url => url.includes(`/sessions/${a.game.deviceId}.json`)
+    ? { a: rec('L109|109'), b: rec('L110|110', { mistakes: 1 }), c: rec('L111|111', { wins: 0 }), d: rec('D|1'), e: rec('L5|5', { detail: { mode: 'L5|5', build: 'sudoku-14' } }) }
+    : null;
+  a = app(remote);
+  assert.equal(a.game.P.level, 1);
+  await a.game.recoverProgress();
+  assert.equal(a.game.P.level, 111);
+  assert.equal(a.game.P.best[109].t, 3); assert.equal(a.game.P.best[110].t, 2); assert.equal(a.game.P.best[111], undefined);
+  assert.equal(a.game.P.total, 4000);
+  assert.equal(a.game.P.best[5], undefined, 'old level list ignored');
+});

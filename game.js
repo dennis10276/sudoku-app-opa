@@ -799,7 +799,7 @@ function settingsSheet() {
     <div class="set-tiles">
       ${tile('game', 'Spel')}${tile('marks', 'Markeren')}
       ${tile('rules', 'Spelregels')}${tile('points', 'Punten')}
-      ${tile('transfer', 'Overzetten')}${tile('reset', 'Alles wissen', 'danger')}
+      ${tile('transfer', 'Overzetten', 'wide')}
       ${inGame ? tile('restartLvl', 'Deze puzzel opnieuw', 'wide') : ''}
       ${IN_APP || isStandalone() ? '' : tile('install', 'Op beginscherm', 'wide')}
     </div>
@@ -1021,6 +1021,38 @@ async function refreshRanking(force) {
   } catch (e) { /* offline: keep showing the last known ranking */ }
   finally { rank.busy = false; renderRanking(); }
 }
+// Lost progress comes back by itself: this device's own play records say which levels were won (and with how
+// many mistakes and hints). If the saved progress is behind them, level, stars and points are restored.
+// It only ever adds, never takes away. (There is no "start everything again" button any more.)
+const RECOVER_KEY = 'sudoku.recoveredAt';
+async function recoverProgress() {
+  const base = rankBase(), me = playTracking?.deviceId;
+  if (TEST || !base || !me || typeof fetch !== 'function') return;
+  if (Date.now() - (load(RECOVER_KEY, 0) || 0) < 6 * 3600000) return;
+  try {
+    const q = new URLSearchParams({ orderBy: '"start"', limitToLast: '2000' });
+    const recs = await (await fetch(`${base}/sessions/${me}.json?${q}`)).json();
+    store(RECOVER_KEY, Date.now());
+    let reached = 0, changed = false;
+    const won = {};
+    for (const r of Object.values(recs || {})) {
+      if (!r || r.app !== 'sudoku' || buildNo(r.detail && r.detail.build) < FIRST_NEW_BUILD) continue;
+      reached = Math.max(reached, levelFromMode(r.detail.mode));
+      const m = /^L(\d{1,5})\|/.exec(r.detail.mode || '');
+      if (m && r.wins > 0) {
+        const n = Number(m[1]), t = !r.mistakes && !r.hints ? 3 : r.mistakes <= 1 ? 2 : 1, sc = Number(r.detail.score) || 0;
+        won[n] = { s: Math.max(sc, won[n] ? won[n].s : 0), t: Math.max(t, won[n] ? won[n].t : 0) };
+        reached = Math.max(reached, n + 1);
+      }
+    }
+    if (reached > P.level) { P.level = reached; changed = true; }
+    for (const [n, w] of Object.entries(won)) {
+      if (!P.best[n]) { P.best[n] = w; P.total += w.s; changed = true; }
+    }
+    if (changed) { saveProgress(); if (screen === 'Home') renderHome(); else if (screen === 'Levels') renderLevels(); }
+  } catch (e) { /* offline: try again next time */ }
+}
+
 // Rivals keep opa's ranking lively: they stay close to opa's level, some a little ahead, some a little
 // behind, with a small daily wobble, and never go backwards. They are worked out on this device only.
 const RIVALS = [
@@ -1672,12 +1704,13 @@ function boot() {
   show('Home');
   if (TEST) startTestMode();
   else if (!isStandalone()) showLanding(false);
+  if (!TEST) setTimeout(recoverProgress, 1500);
   importFromLink();
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 }
 // testing hook
-window.__sudoku = { RC, myNumbersSheet, gameOverSheet, packProgress, unpackProgress, transferCode, get deviceId() { return playTracking?.deviceId; }, get G() { return G; }, set G(v) { G = v; }, get sel() { return sel; }, select, input, hint, undo, erase, toggleNotes, newGame, playLevel, show, render, P, S, win, levelSheet, settingsSheet, dailyDone, finishReceipt, closeReceipt, renderReceiptRank, levelEntry, baseFor, LEVEL_COUNT, dailyEntry };
+window.__sudoku = { RC, recoverProgress, myNumbersSheet, gameOverSheet, packProgress, unpackProgress, transferCode, get deviceId() { return playTracking?.deviceId; }, get G() { return G; }, set G(v) { G = v; }, get sel() { return sel; }, select, input, hint, undo, erase, toggleNotes, newGame, playLevel, show, render, P, S, win, levelSheet, settingsSheet, dailyDone, finishReceipt, closeReceipt, renderReceiptRank, levelEntry, baseFor, LEVEL_COUNT, dailyEntry };
 boot();
 })();

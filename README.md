@@ -179,6 +179,12 @@ getoond op iPhone/iPad of in de app zelf. De service worker laat `.apk` met rust
 QR-codes: `qrcode.js` is qrcode-generator 1.4.4 van Kazuhiko Arase (MIT-licentie); `jsqr.js` is
 jsQR 1.4.0 van Cosmo Wolfe (Apache-licentie 2.0), verkleind.
 
+## Voortgang kwijt? Komt vanzelf terug
+
+Er is geen knop "Alles wissen" meer (opa tikte die per ongeluk aan). Bij het starten kijkt het spel naar de eigen
+speelrecords van dit apparaat in de familiedatabase (`recoverProgress`, hooguit eens per 6 uur): staat het bewaarde
+level lager dan wat er gespeeld is, dan komen level, sterren per level en punten terug. Het voegt alleen toe.
+
 ## Testmodus
 
 https://dennis10276.github.io/sudoku-app-opa/?test opent de testmodus (bijv. op de pc): alle levels zijn open,
