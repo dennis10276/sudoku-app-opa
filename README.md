@@ -185,6 +185,12 @@ Er is geen knop "Alles wissen" meer (opa tikte die per ongeluk aan). Bij het sta
 speelrecords van dit apparaat in de familiedatabase (`recoverProgress`, hooguit eens per 6 uur): staat het bewaarde
 level lager dan wat er gespeeld is, dan komen level, sterren per level en punten terug. Het voegt alleen toe.
 
+## Updates komen vanzelf
+
+Een iPhone houdt de beginscherm-app gepauzeerd in het geheugen, dus een nieuwe versie kwam pas na helemaal
+afsluiten. Nu kijkt het spel bij elke terugkeer naar voren (en elk half uur) in `sw.js` welke versie online staat;
+is die nieuwer dan de eigen `game.js?v=`, dan herlaadt het, maar nooit midden in een puzzel of op het bonnetje.
+
 ## Testmodus
 
 https://dennis10276.github.io/sudoku-app-opa/?test opent de testmodus (bijv. op de pc): alle levels zijn open,

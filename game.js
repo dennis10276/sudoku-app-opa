@@ -915,7 +915,7 @@ function show(name) {
   document.body.classList.toggle('tabs', name !== 'Game');
   document.querySelectorAll('.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
   if (name !== 'Game') { if (G && !G.won) saveGame(); paused = false; }
-  if (name === 'Home') renderHome();
+  if (name === 'Home') { renderHome(); later(reloadIfIdle, 300); }
   if (name === 'Levels') renderLevels();
   if (name === 'Daily') renderDaily();
   if (name === 'Stats') { renderStats(); refreshRanking(false); }
@@ -1674,6 +1674,29 @@ window.__appBack = () => {
   if (screen !== 'Home') { show('Home'); return true; }
   return false;
 };
+
+/* ================= updates ================= */
+// An iPhone keeps the home-screen app paused in memory, so a new version would only arrive after the app is
+// fully closed. Instead: whenever the app comes back to the front (and every 30 minutes), ask which version is
+// online (sw.js names it); if it is newer, reload — but never in the middle of a puzzle or on the receipt.
+const MY_VERSION = (() => { const m = /[?&]v=(\d+)/.exec((document.currentScript && document.currentScript.src) || ''); return m ? Number(m[1]) : 0; })();
+let newerVersion = false;
+async function checkForUpdate() {
+  if (!MY_VERSION || typeof fetch !== 'function' || !location.protocol.startsWith('http')) return;
+  try {
+    const txt = await (await fetch('sw.js', { cache: 'no-store' })).text();
+    const m = /sudoku-v(\d+)/.exec(txt);
+    if (m && Number(m[1]) > MY_VERSION) newerVersion = true;
+  } catch (e) { return; }
+  reloadIfIdle();
+}
+function reloadIfIdle() {
+  if (!newerVersion) return;
+  const busy = (screen === 'Game' && G && !G.won && !G.lost) || RC.open || sheetOpen;
+  if (!busy) { if (G && !G.won) saveGame(); location.reload(); }
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkForUpdate(); });
+setInterval(checkForUpdate, 30 * 60000);
 
 /* ================= test mode ================= */
 function testJump() {
