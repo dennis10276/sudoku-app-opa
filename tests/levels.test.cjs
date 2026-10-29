@@ -284,6 +284,8 @@ test('lost progress comes back from this device\'s own play records, and is neve
   await a.game.recoverProgress();
   assert.equal(a.game.P.level, 111);
   assert.equal(a.game.P.best[109].t, 3); assert.equal(a.game.P.best[110].t, 2); assert.equal(a.game.P.best[111], undefined);
-  assert.equal(a.game.P.total, 4000);
-  assert.equal(a.game.P.best[5], undefined, 'old level list ignored');
+  assert.equal(Object.keys(a.game.P.best).length, 110, 'levels 1-110 all count as finished');
+  assert.equal(a.game.P.best[50].t, 1);
+  assert.equal(a.game.P.total, 110 * 2000);
+  assert.equal(a.game.P.best[5].t, 1, 'a record from the old level list does not count; level 5 is just finished');
 });

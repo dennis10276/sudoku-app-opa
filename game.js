@@ -1046,6 +1046,11 @@ async function recoverProgress() {
       }
     }
     if (reached > P.level) { P.level = reached; changed = true; }
+    // every level below the one reached was finished, even if its record went missing (then: 1 star and an
+    // average score, because how it went is not known)
+    const scores = Object.values(won).map(w => w.s).filter(Boolean);
+    const avg = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+    for (let n = 1; n < reached; n++) if (!won[n]) won[n] = { s: avg, t: 1 };
     for (const [n, w] of Object.entries(won)) {
       if (!P.best[n]) { P.best[n] = w; P.total += w.s; changed = true; }
     }
