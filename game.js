@@ -1482,7 +1482,8 @@ async function familyPlayers() {
       const level = Math.max(0, ...recs.filter(r => buildNo(r.detail && r.detail.build) >= FIRST_NEW_BUILD).map(r => levelFromMode(r.detail && r.detail.mode)));
       if (!best || level > best.level || (level === best.level && recs.length > best.n)) best = { key, level, n: recs.length };
     }));
-    if (best) out.push({ name: /^opa$/i.test(person.name) ? 'Aad' : person.name, key: best.key, level: best.level });   // opa is "Aad" to himself
+    // only opa can be picked here ("Aad" to himself); the others move their progress with "Overzetten"
+    if (best && normName(person.name) === 'opa') out.push({ name: 'Aad', key: best.key, level: best.level });
   }));
   return out.sort((a, b) => b.level - a.level);
 }

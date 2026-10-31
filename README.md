@@ -188,8 +188,8 @@ level lager dan wat er gespeeld is, dan komen level, sterren per level en punten
 ## Opnieuw installeren: "Wie speelt er?"
 
 Een icoon van het beginscherm verwijderen wist op een iPhone ook alles wat het spel bewaarde. Een verse start
-vraagt daarom één keer "Wie speelt er?" met de familienamen (opa heet daar "Aad") als grote knoppen. Een naam
-kiezen neemt de spelerscode van die persoon over (de code met de meeste Sudoku-voortgang); daarna brengt
+vraagt daarom één keer "Wie speelt er?" met één grote knop "Aad" (alleen opa; anderen gebruiken "Overzetten") en
+"Ik ben nieuw". "Aad" kiezen neemt opa's spelerscode over (de code met de meeste Sudoku-voortgang); daarna brengt
 `recoverProgress` level, sterren en punten terug. Ook te kiezen via Instellingen → "Wie speelt er?".
 De uitlegpagina toont de iPhone-stappen voor de browser die gebruikt wordt (Safari of Chrome).
 
