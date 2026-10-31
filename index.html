@@ -15,7 +15,7 @@
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="stylesheet" href="style.css?v=32">
+<link rel="stylesheet" href="style.css?v=33">
 </head>
 <body>
 
@@ -155,12 +155,14 @@
       <p class="ld-sub">De klassieke cijferpuzzel<br>zonder reclame</p>
       <button id="ldPlay" class="ld-play">Spelen</button>
       <p class="ld-small" id="ldResume" hidden>Je gaat verder waar je gebleven was.</p>
+      <button id="ldGoInstall" class="ld-goinstall" type="button">Zet het op je beginscherm ↓</button>
     </header>
 
     <article class="ld-card" id="ldInstall">
       <h2>Zet Sudoku op je beginscherm</h2>
       <p class="ld-lead">Dan staat het spel tussen je apps en start het met één tik, schermvullend en ook zonder internet.</p>
-      <ol class="ld-steps">
+      <button class="ld-installbtn" id="ldInstallBtn" type="button" hidden>Installeren</button>
+      <ol class="ld-steps" id="ldSteps">
         <li>
           <span class="ld-ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="M15.5 8.5 13 13l-4.5 2.5L11 11z"/></svg></span>
           <div><b>Open deze pagina in Safari</b><span>Het blauwe kompas-icoon. In andere browsers werkt het soms niet.</span></div>
@@ -260,10 +262,10 @@
   </defs>
 </svg>
 
-<script src="puzzles.js?v=32"></script>
-<script src="core.js?v=32"></script>
-<script src="tracking-config.js?v=32"></script>
-<script src="tracking.js?v=32"></script>
-<script src="game.js?v=32"></script>
+<script src="puzzles.js?v=33"></script>
+<script src="core.js?v=33"></script>
+<script src="tracking-config.js?v=33"></script>
+<script src="tracking.js?v=33"></script>
+<script src="game.js?v=33"></script>
 </body>
 </html>

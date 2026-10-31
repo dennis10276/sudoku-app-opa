@@ -778,6 +778,7 @@ function settingsSheet() {
     rules: () => rulesSheet(true), points: () => pointsSheet(true),
     install: () => { closeSheet(); showLanding(true); },
     transfer: () => transferMenu(),
+    who: () => whoSheet(true),
     reset: () => confirmSheet('Alles opnieuw beginnen?', 'Je gaat terug naar level 1. Alle punten, sterren en dagelijkse uitdagingen worden gewist. Dit kan niet ongedaan worden gemaakt.', 'Alles wissen', () => {
       Object.assign(P, { level: 1, best: {}, total: 0, fails: {}, wins: 0, bestWins: 0, played: 0 }); saveProgress();
       Object.keys(dailyDone).forEach(k => delete dailyDone[k]); store(LS.done, dailyDone);
@@ -799,7 +800,7 @@ function settingsSheet() {
     <div class="set-tiles">
       ${tile('game', 'Spel')}${tile('marks', 'Markeren')}
       ${tile('rules', 'Spelregels')}${tile('points', 'Punten')}
-      ${tile('transfer', 'Overzetten', 'wide')}
+      ${tile('who', 'Wie speelt er?')}${tile('transfer', 'Overzetten')}
       ${inGame ? tile('restartLvl', 'Deze puzzel opnieuw', 'wide') : ''}
       ${IN_APP || isStandalone() ? '' : tile('install', 'Op beginscherm', 'wide')}
     </div>
@@ -1430,6 +1431,96 @@ function hideLanding() {
 $('ldPlay').addEventListener('click', hideLanding);
 $('ldPlay2').addEventListener('click', hideLanding);
 
+/* ---------- putting it on the home screen: the steps for the browser in use ---------- */
+let installPrompt = null;      // Android/Chrome: a real install button
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; renderInstallSteps(); });
+const STEP_IC = {
+  share: '<svg viewBox="0 0 24 24"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M7 10H5.5v11h13V10H17"/></svg>',
+  add: '<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.5v7M8.5 12h7"/></svg>',
+  ok: '<svg viewBox="0 0 24 24"><path d="M5 12.5 10 17.5 19 7"/></svg>',
+  menu: '<svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>',
+  compass: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="M15.5 8.5 13 13l-4.5 2.5L11 11z"/></svg>',
+};
+function renderInstallSteps() {
+  const box = $('ldSteps'); if (!box) return;
+  const ua = navigator.userAgent || '';
+  const step = (ic, title, text) => `<li><span class="ld-ic">${STEP_IC[ic]}</span><div><b>${title}</b><span>${text}</span></div></li>`;
+  let html;
+  $('ldInstallBtn').hidden = !installPrompt;
+  if (installPrompt) html = step('ok', 'Tik op Installeren', 'Daarna staat Sudoku tussen je apps.');
+  else if (IS_ANDROID) html = step('menu', 'Tik rechtsboven op ⋮', 'De drie puntjes in Chrome.')
+    + step('add', 'Kies “Toevoegen aan startscherm”', 'Of “App installeren”.')
+    + step('ok', 'Tik op “Installeren” of “Toevoegen”', '');
+  else if (IS_IOS && /CriOS|FxiOS|EdgiOS/.test(ua)) html = step('share', 'Tik op het deel-icoon', 'Het vierkantje met een pijltje omhoog, <b>rechtsboven in de adresbalk</b>. Zie je het niet? Tik rechtsonder op <b class="ld-key">•••</b> en dan op <b>Deel</b>.')
+    + step('add', 'Kies “Zet op beginscherm”', 'Schuif in het lijstje een stukje omlaag als je het niet meteen ziet.')
+    + step('ok', 'Tik rechtsboven op “Voeg toe”', 'Lukt het niet? Dan is de iPhone te oud voor Chrome; gebruik dan Safari.');
+  else html = step('compass', 'Open deze pagina in Safari of Chrome', 'Safari is het blauwe kompas-icoon.')
+    + step('share', 'Tik op de Deel-knop', 'Het vierkantje met een pijltje omhoog, onderaan het scherm (in Chrome rechtsboven). Zie je hem niet? Tik dan eerst op <b class="ld-key">•••</b> en daarna op <b>Deel</b>.')
+    + step('add', 'Kies “Zet op beginscherm”', 'Schuif in het lijstje een stukje omlaag als je het niet meteen ziet.')
+    + step('ok', 'Tik rechtsboven op “Voeg toe”', 'Staat er een schakelaar “Open als webapp”? Laat die aan staan.');
+  box.innerHTML = html;
+}
+$('ldInstallBtn').addEventListener('click', () => { const p = installPrompt; if (!p) return; installPrompt = null; p.prompt(); renderInstallSteps(); });
+$('ldGoInstall').addEventListener('click', () => $('ldInstall').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+
+/* ---------- who is playing? (a fresh install finds its way back to its own records) ----------
+   Deleting the home-screen icon on an iPhone also deletes what it saved. A fresh start asks "Wie speelt er?";
+   picking a name takes over that person's player code, after which recoverProgress brings level, stars and
+   points back from the family records. */
+const WHO_KEY = 'sudoku.whoAsked';
+async function familyPlayers() {
+  const base = rankBase();
+  if (!base || typeof fetch !== 'function') return [];
+  const players = await (await fetch(`${base}/players.json`)).json();
+  const people = new Map();
+  for (const [key, p] of Object.entries(players || {})) {
+    if (!/^[a-f0-9]{32}$/.test(key) || !p || typeof p.name !== 'string' || !p.name.trim() || /test/i.test(p.name)) continue;
+    const id = normName(p.name);
+    if (!people.has(id)) people.set(id, { name: p.name.trim().slice(0, 20), keys: [] });
+    people.get(id).keys.push(key);
+  }
+  // per person: the code with the most Sudoku progress
+  const out = [];
+  await Promise.all([...people.values()].map(async person => {
+    let best = null;
+    await Promise.all(person.keys.map(async key => {
+      const q = new URLSearchParams({ orderBy: '"start"', limitToLast: '200' });
+      const recs = Object.values((await (await fetch(`${base}/sessions/${key}.json?${q}`)).json()) || {}).filter(r => r && r.app === 'sudoku');
+      if (!recs.length) return;
+      const level = Math.max(0, ...recs.filter(r => buildNo(r.detail && r.detail.build) >= FIRST_NEW_BUILD).map(r => levelFromMode(r.detail && r.detail.mode)));
+      if (!best || level > best.level || (level === best.level && recs.length > best.n)) best = { key, level, n: recs.length };
+    }));
+    if (best) out.push({ name: /^opa$/i.test(person.name) ? 'Aad' : person.name, key: best.key, level: best.level });   // opa is "Aad" to himself
+  }));
+  return out.sort((a, b) => b.level - a.level);
+}
+async function whoSheet(fromSettings) {
+  if (fromSettings) sheet('<h2>Wie speelt er?</h2><p>Even kijken…</p>', {});
+  let list = [];
+  try { list = await familyPlayers(); } catch (e) { list = []; }
+  if (!list.length) { if (fromSettings) sheet('<h2>Wie speelt er?</h2><p>Geen verbinding. Probeer het straks nog eens.</p><div class="btns"><button class="btn primary big" data-a="close">Sluiten</button></div>', { close: closeSheet }); return; }
+  const me = playTracking?.deviceId;
+  const acts = { none: () => { store(WHO_KEY, 'nieuw'); closeSheet(); }, back: settingsSheet };
+  list.forEach((x, i) => { acts['p' + i] = () => becomePlayer(x); });
+  sheet(`<h2>Wie speelt er?</h2>
+    <p>Tik op je naam. Dan ga je verder waar je gebleven was.</p>
+    <div class="who-list">${list.map((x, i) => `<button class="btn big${x.key === me ? ' primary' : ''}" data-a="p${i}">${esc(x.name)}${x.level ? `<small>level ${x.level}</small>` : ''}</button>`).join('')}</div>
+    <div class="btns">${fromSettings ? '<button class="btn" data-a="back">‹ Terug</button>' : '<button class="btn ghost" data-a="none">Ik ben nieuw</button>'}</div>`, acts);
+}
+function becomePlayer(x) {
+  store(WHO_KEY, x.name);
+  if (x.key === playTracking?.deviceId) { closeSheet(); return; }
+  store('patience.sharing.v1', { key: x.key });          // tracking.js reads this code at start
+  store(RECOVER_KEY, 0); store(RANK_KEY, null); store('sudoku.welcome', x.name);
+  location.reload();
+}
+// a fresh start (nothing played on this device yet) asks once
+function maybeAskWho() {
+  if (TEST || load(WHO_KEY, null)) return;
+  if (P.level > 1 || P.total > 0 || Object.keys(P.best).length) { store(WHO_KEY, 'al bezig'); return; }
+  whoSheet(false);
+}
+
 /* ================= move progress to another device =================
    The progress travels inside a link (#overzetten=…): levels, stars, points, daily challenges, settings and
    the device code for the family overview, so the new device continues as the same player. */
@@ -1733,12 +1824,16 @@ function boot() {
   if (TEST) startTestMode();
   else if (!isStandalone()) showLanding(false);
   if (!TEST) setTimeout(recoverProgress, 1500);
+  renderInstallSteps();
+  const welcome = load('sudoku.welcome', null);
+  if (welcome) { store('sudoku.welcome', null); later(() => toast(`Welkom terug, ${welcome}! Je voortgang komt eraan.`, 4000), 600); }
+  else later(maybeAskWho, 1200);
   importFromLink();
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 }
 // testing hook
-window.__sudoku = { RC, recoverProgress, myNumbersSheet, gameOverSheet, packProgress, unpackProgress, transferCode, get deviceId() { return playTracking?.deviceId; }, get G() { return G; }, set G(v) { G = v; }, get sel() { return sel; }, select, input, hint, undo, erase, toggleNotes, newGame, playLevel, show, render, P, S, win, levelSheet, settingsSheet, dailyDone, finishReceipt, closeReceipt, renderReceiptRank, levelEntry, baseFor, LEVEL_COUNT, dailyEntry };
+window.__sudoku = { RC, whoSheet, familyPlayers, recoverProgress, myNumbersSheet, gameOverSheet, packProgress, unpackProgress, transferCode, get deviceId() { return playTracking?.deviceId; }, get G() { return G; }, set G(v) { G = v; }, get sel() { return sel; }, select, input, hint, undo, erase, toggleNotes, newGame, playLevel, show, render, P, S, win, levelSheet, settingsSheet, dailyDone, finishReceipt, closeReceipt, renderReceiptRank, levelEntry, baseFor, LEVEL_COUNT, dailyEntry };
 boot();
 })();

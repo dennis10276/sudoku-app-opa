@@ -185,6 +185,15 @@ Er is geen knop "Alles wissen" meer (opa tikte die per ongeluk aan). Bij het sta
 speelrecords van dit apparaat in de familiedatabase (`recoverProgress`, hooguit eens per 6 uur): staat het bewaarde
 level lager dan wat er gespeeld is, dan komen level, sterren per level en punten terug. Het voegt alleen toe.
 
+## Opnieuw installeren: "Wie speelt er?"
+
+Een icoon van het beginscherm verwijderen wist op een iPhone ook alles wat het spel bewaarde. Een verse start
+vraagt daarom één keer "Wie speelt er?" met de familienamen (opa heet daar "Aad") als grote knoppen. Een naam
+kiezen neemt de spelerscode van die persoon over (de code met de meeste Sudoku-voortgang); daarna brengt
+`recoverProgress` level, sterren en punten terug. Ook te kiezen via Instellingen → "Wie speelt er?".
+De uitlegpagina toont de stappen voor de browser die gebruikt wordt (Safari of Chrome op iPhone; op Android een
+echte knop "Installeren").
+
 ## Updates komen vanzelf
 
 Een iPhone houdt de beginscherm-app gepauzeerd in het geheugen, dus een nieuwe versie kwam pas na helemaal

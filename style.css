@@ -860,3 +860,10 @@ body.testmode #modal { top: 36px; }
 #testBar button:hover { background: rgba(255, 255, 255, .32); }
 @media (max-width: 520px) { #testBar span { display: none; } }
 body.testmode #lvRange { cursor: pointer; text-decoration: underline dotted; }
+/* who is playing? */
+.who-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 6px; }
+.who-list .btn small { font-size: 15px; }
+/* landing: install help */
+.ld-goinstall { display: block; margin: 14px auto 0; background: none; border: 2px solid rgba(255,255,255,.5); color: #fff; font: inherit; font-size: 18px; font-weight: 800; padding: 12px 20px; border-radius: 999px; }
+.ld-installbtn { display: block; width: 100%; margin: 4px 0 18px; border: 0; border-radius: 18px; padding: 18px; font: inherit; font-size: 22px; font-weight: 900; background: #ffbf1f; color: #15306e; }
+.ld-installbtn[hidden] { display: none; }
