@@ -191,8 +191,7 @@ Een icoon van het beginscherm verwijderen wist op een iPhone ook alles wat het s
 vraagt daarom één keer "Wie speelt er?" met de familienamen (opa heet daar "Aad") als grote knoppen. Een naam
 kiezen neemt de spelerscode van die persoon over (de code met de meeste Sudoku-voortgang); daarna brengt
 `recoverProgress` level, sterren en punten terug. Ook te kiezen via Instellingen → "Wie speelt er?".
-De uitlegpagina toont de stappen voor de browser die gebruikt wordt (Safari of Chrome op iPhone; op Android een
-echte knop "Installeren").
+De uitlegpagina toont de iPhone-stappen voor de browser die gebruikt wordt (Safari of Chrome).
 
 ## Updates komen vanzelf
 

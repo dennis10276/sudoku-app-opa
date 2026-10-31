@@ -1432,13 +1432,10 @@ $('ldPlay').addEventListener('click', hideLanding);
 $('ldPlay2').addEventListener('click', hideLanding);
 
 /* ---------- putting it on the home screen: the steps for the browser in use ---------- */
-let installPrompt = null;      // Android/Chrome: a real install button
-addEventListener('beforeinstallprompt', e => { e.preventDefault(); installPrompt = e; renderInstallSteps(); });
 const STEP_IC = {
   share: '<svg viewBox="0 0 24 24"><path d="M12 3v12M8 7l4-4 4 4"/><path d="M7 10H5.5v11h13V10H17"/></svg>',
   add: '<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M12 8.5v7M8.5 12h7"/></svg>',
   ok: '<svg viewBox="0 0 24 24"><path d="M5 12.5 10 17.5 19 7"/></svg>',
-  menu: '<svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="12" cy="19" r="1.6"/></svg>',
   compass: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.5"/><path d="M15.5 8.5 13 13l-4.5 2.5L11 11z"/></svg>',
 };
 function renderInstallSteps() {
@@ -1446,12 +1443,8 @@ function renderInstallSteps() {
   const ua = navigator.userAgent || '';
   const step = (ic, title, text) => `<li><span class="ld-ic">${STEP_IC[ic]}</span><div><b>${title}</b><span>${text}</span></div></li>`;
   let html;
-  $('ldInstallBtn').hidden = !installPrompt;
-  if (installPrompt) html = step('ok', 'Tik op Installeren', 'Daarna staat Sudoku tussen je apps.');
-  else if (IS_ANDROID) html = step('menu', 'Tik rechtsboven op ⋮', 'De drie puntjes in Chrome.')
-    + step('add', 'Kies “Toevoegen aan startscherm”', 'Of “App installeren”.')
-    + step('ok', 'Tik op “Installeren” of “Toevoegen”', '');
-  else if (IS_IOS && /CriOS|FxiOS|EdgiOS/.test(ua)) html = step('share', 'Tik op het deel-icoon', 'Het vierkantje met een pijltje omhoog, <b>rechtsboven in de adresbalk</b>. Zie je het niet? Tik rechtsonder op <b class="ld-key">•••</b> en dan op <b>Deel</b>.')
+  // iPhone only: Chrome (and other browsers) put the share icon in the address bar, Safari at the bottom
+  if (IS_IOS && /CriOS|FxiOS|EdgiOS/.test(ua)) html = step('share', 'Tik op het deel-icoon', 'Het vierkantje met een pijltje omhoog, <b>rechtsboven in de adresbalk</b>. Zie je het niet? Tik rechtsonder op <b class="ld-key">•••</b> en dan op <b>Deel</b>.')
     + step('add', 'Kies “Zet op beginscherm”', 'Schuif in het lijstje een stukje omlaag als je het niet meteen ziet.')
     + step('ok', 'Tik rechtsboven op “Voeg toe”', 'Lukt het niet? Dan is de iPhone te oud voor Chrome; gebruik dan Safari.');
   else html = step('compass', 'Open deze pagina in Safari of Chrome', 'Safari is het blauwe kompas-icoon.')
@@ -1460,7 +1453,6 @@ function renderInstallSteps() {
     + step('ok', 'Tik rechtsboven op “Voeg toe”', 'Staat er een schakelaar “Open als webapp”? Laat die aan staan.');
   box.innerHTML = html;
 }
-$('ldInstallBtn').addEventListener('click', () => { const p = installPrompt; if (!p) return; installPrompt = null; p.prompt(); renderInstallSteps(); });
 $('ldGoInstall').addEventListener('click', () => $('ldInstall').scrollIntoView({ behavior: 'smooth', block: 'start' }));
 
 /* ---------- who is playing? (a fresh install finds its way back to its own records) ----------
