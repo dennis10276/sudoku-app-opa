@@ -1453,7 +1453,14 @@ function renderInstallSteps() {
     + step('ok', 'Tik rechtsboven op “Voeg toe”', 'Staat er een schakelaar “Open als webapp”? Laat die aan staan.');
   box.innerHTML = html;
 }
-$('ldGoInstall').addEventListener('click', () => $('ldInstall').scrollIntoView({ behavior: 'smooth', block: 'start' }));
+// one button: open the iPhone share menu straight away (then only "Zet op beginscherm" + "Voeg toe" are left);
+// without a share menu, or if it is closed, the steps below are shown
+$('ldGoInstall').addEventListener('click', async () => {
+  const steps = () => $('ldInstall').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (!navigator.share) { steps(); return; }
+  $('ldHint').hidden = false;
+  try { await navigator.share({ title: 'Sudoku', url: location.href }); } catch (e) { steps(); }
+});
 
 /* ---------- who is playing? (a fresh install finds its way back to its own records) ----------
    Deleting the home-screen icon on an iPhone also deletes what it saved. A fresh start asks "Wie speelt er?";
@@ -1500,16 +1507,30 @@ async function whoSheet(fromSettings) {
     <div class="who-list">${list.map((x, i) => `<button class="btn big${x.key === me ? ' primary' : ''}" data-a="p${i}">${esc(x.name)}${x.level ? `<small>level ${x.level}</small>` : ''}</button>`).join('')}</div>
     <div class="btns">${fromSettings ? '<button class="btn" data-a="back">‹ Terug</button>' : '<button class="btn ghost" data-a="none">Ik ben nieuw</button>'}</div>`, acts);
 }
+const SPELER = /[?&]speler=aad\b/i.test((typeof location !== 'undefined' && location.search) || '');
 function becomePlayer(x) {
   store(WHO_KEY, x.name);
-  if (x.key === playTracking?.deviceId) { closeSheet(); return; }
+  const url = location.pathname + '?speler=aad';
+  if (x.key === playTracking?.deviceId) { closeSheet(); if (!SPELER) history.replaceState(null, '', url); useAadManifest(); return; }
   store('patience.sharing.v1', { key: x.key });          // tracking.js reads this code at start
   store(RECOVER_KEY, 0); store(RANK_KEY, null); store('sudoku.welcome', x.name);
-  location.reload();
+  location.replace(url);                                  // reload with ?speler=aad, so a home-screen icon made now starts as Aad
+}
+// a home-screen icon made from this page starts with ?speler=aad as well
+function useAadManifest() { const l = $('manifestLink'); if (l) l.setAttribute('href', 'manifest-aad.webmanifest'); }
+async function connectFromLink() {
+  useAadManifest();
+  if (load(WHO_KEY, null)) return;                        // already chosen on this device
+  try {
+    const aad = (await familyPlayers())[0];
+    if (aad) becomePlayer(aad); else whoSheet(false);
+  } catch (e) { whoSheet(false); }
 }
 // a fresh start (nothing played on this device yet) asks once
 function maybeAskWho() {
-  if (TEST || load(WHO_KEY, null)) return;
+  if (TEST) return;
+  if (SPELER) { connectFromLink(); return; }
+  if (load(WHO_KEY, null)) return;
   if (P.level > 1 || P.total > 0 || Object.keys(P.best).length) { store(WHO_KEY, 'al bezig'); return; }
   whoSheet(false);
 }
@@ -1818,6 +1839,7 @@ function boot() {
   else if (!isStandalone()) showLanding(false);
   if (!TEST) setTimeout(recoverProgress, 1500);
   renderInstallSteps();
+  if (SPELER) useAadManifest();
   const welcome = load('sudoku.welcome', null);
   if (welcome) { store('sudoku.welcome', null); later(() => toast(`Welkom terug, ${welcome}! Je voortgang komt eraan.`, 4000), 600); }
   else later(maybeAskWho, 1200);

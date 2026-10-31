@@ -191,7 +191,13 @@ Een icoon van het beginscherm verwijderen wist op een iPhone ook alles wat het s
 vraagt daarom één keer "Wie speelt er?" met één grote knop "Aad" (alleen opa; anderen gebruiken "Overzetten") en
 "Ik ben nieuw". "Aad" kiezen neemt opa's spelerscode over (de code met de meeste Sudoku-voortgang); daarna brengt
 `recoverProgress` level, sterren en punten terug. Ook te kiezen via Instellingen → "Wie speelt er?".
-De uitlegpagina toont de iPhone-stappen voor de browser die gebruikt wordt (Safari of Chrome).
+De uitlegpagina toont de iPhone-stappen voor de browser die gebruikt wordt (Safari of Chrome). De knop
+"Zet het op je beginscherm" opent meteen het deelmenu van de iPhone (Web Share), zodat alleen "Zet op beginscherm"
+en "Voeg toe" overblijven; zonder deelmenu springt hij naar de stappen.
+
+Directe link voor opa: https://dennis10276.github.io/sudoku-app-opa/?speler=aad koppelt meteen aan Aad, zonder
+vraag. Na het kiezen van "Aad" krijgt de pagina dat adres en wijst ze naar `manifest-aad.webmanifest`
+(`start_url` `./?speler=aad`), zodat een icoon dat daarna op het beginscherm wordt gezet ook meteen als Aad start.
 
 ## Updates komen vanzelf
 
